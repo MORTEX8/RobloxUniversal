@@ -1,4 +1,4 @@
--- Enhanced Aimbot with Dynamic Prediction
+-- Enhanced Aimbot with Physics-Based Prediction
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
@@ -16,7 +16,9 @@ local SETTINGS = {
     Prediction = true, -- Enable prediction
     WallCheck = false, -- Check if target is visible
     BasePrediction = 0.5, -- Base prediction multiplier
-    SpeedSensitivity = 0.1 -- How much velocity affects prediction (10%)
+    SpeedSensitivity = 0.1, -- How much velocity affects prediction (10%)
+    ProjectileSpeed = 1000, -- Added for physics prediction
+    ProjectileDrop = 9.8 -- Added for physics prediction (gravity)
 }
 
 -- FOV Circle (Now follows mouse)
@@ -26,6 +28,35 @@ fovCircle.Thickness = 1
 fovCircle.Transparency = 0.7
 fovCircle.Filled = false
 fovCircle.Radius = SETTINGS.FOV
+fovCircle.Visible = true
+
+-- Physics Prediction Functions
+local Physics = {}
+function Physics.MovementPrediction(Origin, Destination, DestinationVelocity, ProjectileSpeed)
+    local Distance = (Destination - Origin).Magnitude
+    local TimeToHit = (Distance / ProjectileSpeed)
+    local Predicted = Destination + DestinationVelocity * TimeToHit
+    local Delta = (Predicted - Origin).Magnitude / ProjectileSpeed
+   
+    ProjectileSpeed = ProjectileSpeed - 0.013 * ProjectileSpeed ^ 2 * TimeToHit ^ 2
+    TimeToHit = TimeToHit + (Delta / ProjectileSpeed)
+
+    local Actual = Destination + DestinationVelocity * TimeToHit
+    return Actual
+end
+
+function Physics.Trajectory(Origin, Destination, ProjectileSpeed, ProjectileDrop)
+    local Distance = (Destination - Origin).Magnitude
+    local TimeToHit = (Distance / ProjectileSpeed)
+    local ProperSpeed = ProjectileSpeed - 0.013 * ProjectileSpeed ^ 2 * TimeToHit ^ 2
+    TimeToHit = TimeToHit + (Distance / ProperSpeed)
+   
+    local DropTime = ProjectileDrop * TimeToHit ^ 2
+    if tostring(DropTime):find("nan") or (Distance <= 100) then
+        return 0
+    end
+    return DropTime
+end
 
 -- Wall Check (Only If Enabled)
 local function isVisible(target, part)
@@ -41,7 +72,7 @@ local function isVisible(target, part)
     return raycastResult and raycastResult.Instance:IsDescendantOf(target)
 end
 
--- Enhanced Prediction (Now scales with target speed)
+-- Enhanced Prediction with Physics
 local function getAimPoint(head)
     local root = head.Parent:FindFirstChild("HumanoidRootPart")
     if not root then return head.Position end
@@ -57,12 +88,25 @@ local function getAimPoint(head)
         aimPoint = aimPoint + (moveDir * (headSize * SETTINGS.EdgeOffset))
     end
     
-    -- Dynamic prediction (scales with target speed)
+    -- Physics-based prediction
     if SETTINGS.Prediction then
-        local distance = (root.Position - Camera.CFrame.Position).Magnitude
-        local speedFactor = 1 + (velocity.Magnitude * SETTINGS.SpeedSensitivity / 100) -- 10% scaling
-        local timeToReach = distance / 1000 * speedFactor
-        aimPoint = aimPoint + (velocity * timeToReach * SETTINGS.BasePrediction)
+        local origin = Camera.CFrame.Position
+        local predictedPos = Physics.MovementPrediction(
+            origin,
+            aimPoint,
+            velocity,
+            SETTINGS.ProjectileSpeed
+        )
+        
+        -- Apply gravity compensation
+        local dropCompensation = Physics.Trajectory(
+            origin,
+            predictedPos,
+            SETTINGS.ProjectileSpeed,
+            SETTINGS.ProjectileDrop
+        )
+        
+        aimPoint = predictedPos + Vector3.new(0, dropCompensation, 0)
     end
     
     -- Distance-based elevation
@@ -107,24 +151,51 @@ local function getTarget()
 end
 
 -- Main loop
-RunService.RenderStepped:Connect(function()
-    -- Update FOV circle to follow mouse
-    local mousePos = UserInputService:GetMouseLocation()
-    fovCircle.Position = mousePos
+local renderSteppedConnection
+local characterAddedConnection
+
+local function initialize()
+    -- Disconnect existing connections if they exist
+    if renderSteppedConnection then
+        renderSteppedConnection:Disconnect()
+    end
     
-    -- Aim when holding right mouse button
-    if UserInputService:IsMouseButtonPressed(SETTINGS.AimKey) then
-        local target = getTarget()
-        if target then
-            local aimPoint = getAimPoint(target)
-            Camera.CFrame = CFrame.lookAt(Camera.CFrame.Position, aimPoint)
+    renderSteppedConnection = RunService.RenderStepped:Connect(function()
+        -- Update FOV circle to follow mouse
+        local mousePos = UserInputService:GetMouseLocation()
+        fovCircle.Position = mousePos
+        
+        -- Aim when holding right mouse button
+        if UserInputService:IsMouseButtonPressed(SETTINGS.AimKey) then
+            local target = getTarget()
+            if target then
+                local aimPoint = getAimPoint(target)
+                Camera.CFrame = CFrame.lookAt(Camera.CFrame.Position, aimPoint)
+            end
         end
+    end)
+end
+
+-- Initialize when character is added (including respawn)
+characterAddedConnection = LocalPlayer.CharacterAdded:Connect(function()
+    initialize()
+end)
+
+-- Initial setup
+initialize()
+
+-- Proper cleanup when game closes (not when player dies)
+game:GetService("UserInputService").WindowFocusReleased:Connect(function()
+    if not LocalPlayer.Character or not LocalPlayer.Character:FindFirstChild("Humanoid") or LocalPlayer.Character.Humanoid.Health <= 0 then
+        return -- Don't remove if player is dead
+    end
+    fovCircle:Remove()
+    if renderSteppedConnection then
+        renderSteppedConnection:Disconnect()
+    end
+    if characterAddedConnection then
+        characterAddedConnection:Disconnect()
     end
 end)
 
--- Cleanup
-game:GetService("UserInputService").WindowFocusReleased:Connect(function()
-    fovCircle:Remove()
-end)
-
-print("Enhanced Aimbot Active | FOV:", SETTINGS.FOV, "| Dynamic Prediction Enabled")
+print("Enhanced Aimbot Active | FOV:", SETTINGS.FOV, "| Physics-Based Prediction Enabled")
