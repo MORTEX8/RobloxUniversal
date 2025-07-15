@@ -1,0 +1,44 @@
+-- Loader Script for Roblox
+-- Paste this into a LocalScript in StarterPlayerScripts or execute it directly
+
+local function loadScripts()
+    -- First loadstring
+    local loadstring1 = [[
+        print("First script loaded!")
+        -- Your first script code here
+        -- Example:
+        game:GetService("Players").LocalPlayer.CharacterAdded:Connect(function(character)
+            print("Character loaded!")
+        end)
+    ]]
+    
+    -- Second loadstring
+    local loadstring2 = [[
+        print("Second script loaded!")
+        -- Your second script code here
+        -- Example:
+        local player = game:GetService("Players").LocalPlayer
+        player.Chatted:Connect(function(message)
+            print("You said: "..message)
+        end)
+    ]]
+    
+    -- Load the scripts
+    local success1, result1 = pcall(function() return loadstring(loadstring1)() end)
+    local success2, result2 = pcall(function() return loadstring(loadstring2)() end)
+    
+    -- Check for errors
+    if not success1 then
+        warn("Failed to load first script: "..tostring(result1))
+    end
+    if not success2 then
+        warn("Failed to load second script: "..tostring(result2))
+    end
+    
+    if success1 and success2 then
+        print("Both scripts loaded successfully!")
+    end
+end
+
+-- Execute the loader
+loadScripts()
