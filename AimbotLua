@@ -1,0 +1,130 @@
+-- Enhanced Aimbot with Dynamic Prediction
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
+local LocalPlayer = Players.LocalPlayer
+local Camera = workspace.CurrentCamera
+
+-- Configuration
+local SETTINGS = {
+    FOV = 100, -- Targeting radius in pixels
+    AimKey = Enum.UserInputType.MouseButton2, -- Right mouse button
+    EdgeOffset = 0.1, -- How close to edge (0-1)
+    DistanceMultiplier = 0.02, -- 2% higher per 10m
+    MinElevation = 0, -- Minimum aim elevation
+    MaxElevation = 0.3, -- Maximum aim elevation
+    Prediction = true, -- Enable prediction
+    WallCheck = false, -- Check if target is visible
+    BasePrediction = 0.5, -- Base prediction multiplier
+    SpeedSensitivity = 0.1 -- How much velocity affects prediction (10%)
+}
+
+-- FOV Circle (Now follows mouse)
+local fovCircle = Drawing.new("Circle")
+fovCircle.Color = Color3.new(1, 1, 1)
+fovCircle.Thickness = 1
+fovCircle.Transparency = 0.7
+fovCircle.Filled = false
+fovCircle.Radius = SETTINGS.FOV
+
+-- Wall Check (Only If Enabled)
+local function isVisible(target, part)
+    if not SETTINGS.WallCheck then return true end
+    
+    local origin = Camera.CFrame.Position
+    local direction = (part.Position - origin).Unit * 1000
+    local raycastParams = RaycastParams.new()
+    raycastParams.FilterDescendantsInstances = {LocalPlayer.Character, target}
+    raycastParams.FilterType = Enum.RaycastFilterType.Blacklist
+    
+    local raycastResult = workspace:Raycast(origin, direction, raycastParams)
+    return raycastResult and raycastResult.Instance:IsDescendantOf(target)
+end
+
+-- Enhanced Prediction (Now scales with target speed)
+local function getAimPoint(head)
+    local root = head.Parent:FindFirstChild("HumanoidRootPart")
+    if not root then return head.Position end
+    
+    -- Base position (head)
+    local aimPoint = head.Position
+    
+    -- Movement-based edge aiming
+    local velocity = root.Velocity
+    if velocity.Magnitude > 1 then
+        local moveDir = velocity.Unit
+        local headSize = head.Size.X
+        aimPoint = aimPoint + (moveDir * (headSize * SETTINGS.EdgeOffset))
+    end
+    
+    -- Dynamic prediction (scales with target speed)
+    if SETTINGS.Prediction then
+        local distance = (root.Position - Camera.CFrame.Position).Magnitude
+        local speedFactor = 1 + (velocity.Magnitude * SETTINGS.SpeedSensitivity / 100) -- 10% scaling
+        local timeToReach = distance / 1000 * speedFactor
+        aimPoint = aimPoint + (velocity * timeToReach * SETTINGS.BasePrediction)
+    end
+    
+    -- Distance-based elevation
+    local distance = (root.Position - Camera.CFrame.Position).Magnitude
+    local elevationFactor = math.clamp(
+        (distance / 10) * SETTINGS.DistanceMultiplier,
+        SETTINGS.MinElevation,
+        SETTINGS.MaxElevation
+    )
+    aimPoint = aimPoint + Vector3.new(0, head.Size.Y * elevationFactor, 0)
+    
+    return aimPoint
+end
+
+-- Find closest target in FOV (now relative to mouse)
+local function getTarget()
+    local closestDist = SETTINGS.FOV + 1
+    local closestHead = nil
+    local mousePos = UserInputService:GetMouseLocation()
+    
+    for _, player in ipairs(Players:GetPlayers()) do
+        if player ~= LocalPlayer and player.Character then
+            local humanoid = player.Character:FindFirstChildOfClass("Humanoid")
+            local head = player.Character:FindFirstChild("Head")
+            
+            if head and (not humanoid or humanoid.Health > 0) then
+                local screenPos = Camera:WorldToViewportPoint(head.Position)
+                if screenPos.Z > 0 and isVisible(player.Character, head) then
+                    local targetPos = Vector2.new(screenPos.X, screenPos.Y)
+                    local dist = (mousePos - targetPos).Magnitude
+                    
+                    if dist <= SETTINGS.FOV and dist < closestDist then
+                        closestDist = dist
+                        closestHead = head
+                    end
+                end
+            end
+        end
+    end
+    
+    return closestHead
+end
+
+-- Main loop
+RunService.RenderStepped:Connect(function()
+    -- Update FOV circle to follow mouse
+    local mousePos = UserInputService:GetMouseLocation()
+    fovCircle.Position = mousePos
+    
+    -- Aim when holding right mouse button
+    if UserInputService:IsMouseButtonPressed(SETTINGS.AimKey) then
+        local target = getTarget()
+        if target then
+            local aimPoint = getAimPoint(target)
+            Camera.CFrame = CFrame.lookAt(Camera.CFrame.Position, aimPoint)
+        end
+    end
+end)
+
+-- Cleanup
+game:GetService("UserInputService").WindowFocusReleased:Connect(function()
+    fovCircle:Remove()
+end)
+
+print("Enhanced Aimbot Active | FOV:", SETTINGS.FOV, "| Dynamic Prediction Enabled")
