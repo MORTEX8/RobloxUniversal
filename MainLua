@@ -1,44 +1,41 @@
--- Loader Script for Roblox
--- Paste this into a LocalScript in StarterPlayerScripts or execute it directly
+-- Roblox External Script Loader
+-- Fetches and executes scripts from GitHub
 
-local function loadScripts()
-    -- First loadstring
-    local loadstring1 = [[
-        print("First script loaded!")
-        -- Your first script code here
-        -- Example:
-        game:GetService("Players").LocalPlayer.CharacterAdded:Connect(function(character)
-            print("Character loaded!")
+local function loadExternalScripts()
+    -- URLs for the scripts
+    local aimbotUrl = "https://raw.githubusercontent.com/MORTEX8/RobloxUniversal/refs/heads/main/AimbotLua"
+    local visualsUrl = "https://raw.githubusercontent.com/MORTEX8/RobloxUniversal/refs/heads/main/VisualsLua"
+    
+    -- Function to fetch and execute a script
+    local function fetchAndExecute(url, scriptName)
+        local success, response = pcall(function()
+            return game:HttpGetAsync(url, true)
         end)
-    ]]
-    
-    -- Second loadstring
-    local loadstring2 = [[
-        print("Second script loaded!")
-        -- Your second script code here
-        -- Example:
-        local player = game:GetService("Players").LocalPlayer
-        player.Chatted:Connect(function(message)
-            print("You said: "..message)
-        end)
-    ]]
-    
-    -- Load the scripts
-    local success1, result1 = pcall(function() return loadstring(loadstring1)() end)
-    local success2, result2 = pcall(function() return loadstring(loadstring2)() end)
-    
-    -- Check for errors
-    if not success1 then
-        warn("Failed to load first script: "..tostring(result1))
-    end
-    if not success2 then
-        warn("Failed to load second script: "..tostring(result2))
+        
+        if success and response then
+            local executeSuccess, errorMsg = pcall(function()
+                loadstring(response)()
+            end)
+            
+            if executeSuccess then
+                print(scriptName.." loaded successfully!")
+            else
+                warn("Failed to execute "..scriptName..": "..tostring(errorMsg))
+            end
+        else
+            warn("Failed to fetch "..scriptName..": "..tostring(response))
+        end
     end
     
-    if success1 and success2 then
-        print("Both scripts loaded successfully!")
-    end
+    -- Load Aimbot script
+    fetchAndExecute(aimbotUrl, "Aimbot Script")
+    
+    -- Load Visuals script
+    fetchAndExecute(visualsUrl, "Visuals Script")
 end
 
--- Execute the loader
-loadScripts()
+-- Execute the loader with error protection
+local success, err = pcall(loadExternalScripts)
+if not success then
+    warn("Loader failed: "..tostring(err))
+end
