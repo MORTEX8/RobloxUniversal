@@ -1,0 +1,671 @@
+--!strict
+
+--[[
+    Roblox Nametag System (LocalScript)
+
+    This script creates dynamic nametags and scaling 2D boxes around players' humanoids,
+    visible through walls. It also adds a highlight effect to players.
+    It automatically updates for new players joining, players leaving,
+    and players respawning after being killed. The 2D box always scales to precisely match
+    the player's size on screen. The nametag is positioned above this box,
+    the distance is displayed below the box, and a live health bar is to the left,
+    maintaining a consistent thinness relative to the main box.
+
+    Additionally, this script provides an "aimbot" feature:
+    - When you hold the right mouse button, your crosshair will continuously move to face the head
+      of the nearest player within a defined Field of View (FOV) circle.
+    - The FOV circle is drawn on your screen and constantly centers on your mouse cursor.
+
+    Place this LocalScript in 'StarterPlayerScripts'.
+]]
+
+
+
+
+
+-- FullBright LocalScript
+-- Paste this into StarterPlayerScripts or directly into your character
+
+local Lighting = game:GetService("Lighting")
+local RunService = game:GetService("RunService")
+
+-- Function to apply FullBright settings
+local function applyFullBright()
+    -- Lighting properties
+    Lighting.Ambient = Color3.new(1, 1, 1) -- White ambient light
+    Lighting.Brightness = 2 -- High brightness
+    Lighting.GlobalShadows = false -- Disable shadows
+    Lighting.Outlines = false -- Disable outlines (can help visibility)
+    
+    -- Remove all existing lighting effects
+    for _, child in ipairs(Lighting:GetChildren()) do
+        if child:IsA("BloomEffect") or 
+           child:IsA("BlurEffect") or 
+           child:IsA("ColorCorrectionEffect") or 
+           child:IsA("SunRaysEffect") then
+            child.Enabled = false
+        end
+    end
+    
+    -- Create a constant bright sky
+    if not Lighting:FindFirstChild("FullBrightSky") then
+        local sky = Instance.new("Sky")
+        sky.Name = "FullBrightSky"
+        sky.SkyboxBk = "rbxassetid://4633180796" -- Bright sky images
+        sky.SkyboxDn = "rbxassetid://4633180932"
+        sky.SkyboxFt = "rbxassetid://4633180777"
+        sky.SkyboxLf = "rbxassetid://4633180887"
+        sky.SkyboxRt = "rbxassetid://4633180959"
+        sky.SkyboxUp = "rbxassetid://4633180899"
+        sky.Parent = Lighting
+    end
+    
+    -- Force time to midday (optional)
+    Lighting.ClockTime = 14
+end
+
+-- Apply initially
+applyFullBright()
+
+-- Keep applying in case the game tries to change lighting back
+RunService.Heartbeat:Connect(function()
+    applyFullBright()
+end)
+
+-- Reapply when lighting changes (some games modify lighting dynamically)
+Lighting.Changed:Connect(applyFullBright)
+
+-- Message to confirm it's working
+print("FullBright enabled - all darkness and shadows removed")
+
+--!strict
+
+-- WARNING: Heads up! This script has not been verified by ScriptBlox. Use at your own risk!
+-- WARNING: Heads up! This script has not been verified by ScriptBlox. Use at your own risk!
+
+-- This script modifies the HumanoidRootPart and Head of other players in the game.
+
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+
+-- Player Info (these are global variables for configuration)
+_G.Disabled = true -- Set to 'true' to enable the script's effects, 'false' to disable.
+
+-- Configuration for HumanoidRootPart size
+_G.HumanoidRootPartSizeX = 2
+_G.HumanoidRootPartSizeY = 3
+_G.HumanoidRootPartSizeZ = 2
+
+-- Configuration for Head size
+-- You can change these values to adjust the head's dimensions
+_G.HeadPartSizeX = 2
+_G.HeadPartSizeY = 2
+_G.HeadPartSizeZ = 2
+
+-- This section runs every frame to continuously apply the changes.
+RunService.RenderStepped:Connect(function()
+    -- Check if the script is enabled via the _G.Disabled variable.
+    if _G.Disabled then
+        -- Loop through all players currently in the game.
+        for _, player in ipairs(Players:GetPlayers()) do
+            -- Ensure we don't modify the local player's own character.
+            if player.Name ~= Players.LocalPlayer.Name then
+                -- Use pcall to safely attempt modifications, preventing script errors if a character isn't ready.
+                pcall(function()
+                    local character = player.Character
+                    -- Check if the character exists before trying to access its parts.
+                    if character then
+                        -- *** Modify HumanoidRootPart ***
+                        local humanoidRootPart = character:FindFirstChild("HumanoidRootPart")
+                        if humanoidRootPart then
+                            -- Set the size of the HumanoidRootPart using the configured global variables.
+                            humanoidRootPart.Size = Vector3.new(_G.HumanoidRootPartSizeX, _G.HumanoidRootPartSizeY, _G.HumanoidRootPartSizeZ)
+                            -- Set the transparency of the HumanoidRootPart.
+                            humanoidRootPart.Transparency = 0.7
+                            -- Set the color of the HumanoidRootPart to "Really blue".
+                            humanoidRootPart.BrickColor = BrickColor.new("Really blue")
+                            -- Set the material of the HumanoidRootPart to "Neon".
+                            humanoidRootPart.Material = Enum.Material.Neon
+                            -- Make the HumanoidRootPart non-collidable so players can walk through it.
+                            humanoidRootPart.CanCollide = false
+                        end
+
+                        -- *** Modify Head ***
+                        local head = character:FindFirstChild("Head")
+                        if head then
+                            -- Set the size of the Head using the configured global variables.
+                            head.Size = Vector3.new(_G.HeadPartSizeX, _G.HeadPartSizeY, _G.HeadPartSizeZ)
+                            -- Set the transparency of the Head.
+                            head.Transparency = 0.1
+                            -- Set the color of the Head to "Really blue".
+                            head.BrickColor = BrickColor.new("Really blue")
+                            -- Set the material of the Head to "Neon".
+                            head.Material = Enum.Material.Neon
+                            -- Make the Head non-collidable (optional, but consistent with HumanoidRootPart).
+                            head.CanCollide = false
+                        end
+                    end
+                end)
+            end
+        end
+    end
+end)
+
+print("Simplified HumanoidRootPart and Head Modifier Script loaded.")
+
+
+-- Services
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Debris = game:GetService("Debris")
+local UserInputService = game:GetService("UserInputService")
+
+-- Configuration for the nametags, 2D box, and health bar
+local NAMETAG_HEIGHT_PIXELS = 20 -- Fixed height for the nametag text label
+local DISTANCE_LABEL_HEIGHT_PIXELS = 15 -- Fixed height for the distance text label
+local HEALTH_BAR_MAX_PIXEL_WIDTH = 4 -- The maximum thickness for the health bar
+local HEALTH_BAR_RELATIVE_FACTOR = 0.05 -- Health bar width will try to be 5% of the box's width
+local HEALTH_BAR_MIN_PIXEL_WIDTH_FOR_VISIBILITY = 1 -- Ensure it doesn't disappear entirely
+local HEALTH_BAR_OFFSET_X = 5 -- Gap between health bar and the main ESP box
+local UPDATE_INTERVAL = 5 -- Seconds for the periodic check (for general cleanup/recreation)
+
+-- Health bar color thresholds
+local HEALTH_COLOR_HIGH = Color3.fromRGB(0, 255, 0)   -- Green
+local HEALTH_COLOR_MEDIUM = Color3.fromRGB(255, 165, 0) -- Orange
+local HEALTH_COLOR_LOW = Color3.fromRGB(255, 0, 0)    -- Red
+local HEALTH_THRESHOLD_MEDIUM = 0.6 -- Below this percentage, health turns orange
+local HEALTH_THRESHOLD_LOW = 0.3    -- Below this percentage, health turns red
+
+-- Configuration for FOV Circle and Aimbot
+local FOV_CIRCLE_RADIUS_PIXELS = 150 -- Radius of the FOV circle in pixels
+local FOV_CIRCLE_COLOR = Color3.fromRGB(255, 255, 255) -- White
+local FOV_CIRCLE_TRANSPARENCY = 1 -- Fully transparent background for outline effect
+local FOV_CIRCLE_BORDER_THICKNESS = 2 -- Thickness of the FOV circle line
+
+-- Table to keep track of active nametags and highlights (Player -> {BillboardGui, Highlight})
+local activeNametags = {}
+
+-- Store camera reference for WorldToScreenPoint, will be set once workspace.CurrentCamera is available
+local camera = nil
+
+-- Get the local player
+local localPlayer = Players.LocalPlayer
+
+-- Aimbot variables
+local isRightMouseDown = false -- Tracks if the right mouse button is currently held down
+
+-- Function to update the health bar's fill and color
+local function updateHealthBar(humanoid, healthBarFill)
+    if not humanoid or not healthBarFill then return end
+
+    local healthPercentage = humanoid.Health / humanoid.MaxHealth
+
+    -- Update fill size (from bottom up)
+    healthBarFill.Size = UDim2.new(1, 0, healthPercentage, 0)
+    healthBarFill.Position = UDim2.new(0, 0, 1 - healthPercentage, 0)
+
+    -- Update color based on health percentage
+    if healthPercentage > HEALTH_THRESHOLD_MEDIUM then
+        healthBarFill.BackgroundColor3 = HEALTH_COLOR_HIGH
+    elseif healthPercentage > HEALTH_THRESHOLD_LOW then
+        healthBarFill.BackgroundColor3 = HEALTH_COLOR_MEDIUM
+    else
+        healthBarFill.BackgroundColor3 = HEALTH_COLOR_LOW
+    end
+end
+
+-- Function to update the nametag and box size/position dynamically
+local function updateNametagAndBox(player)
+    local character = player.Character
+    local guiAndHighlight = activeNametags[player]
+
+    -- Ensure character, GUI/Highlight data, and camera exist
+    if not character or not guiAndHighlight or not guiAndHighlight.BillboardGui or not guiAndHighlight.Highlight or not camera then return end
+
+    local nametagGui = guiAndHighlight.BillboardGui
+    local playerHighlight = guiAndHighlight.Highlight
+    local humanoid = character:FindFirstChildOfClass("Humanoid")
+
+    local humanoidRootPart = character:FindFirstChild("HumanoidRootPart")
+    if not humanoidRootPart or not humanoid then
+        nametagGui.Enabled = false -- Hide if HumanoidRootPart or Humanoid is missing
+        playerHighlight.Enabled = false -- Disable highlight
+        return
+    end
+
+    -- Get the character's bounding box in world space
+    local characterCFrame, characterSize = character:GetBoundingBox()
+
+    -- Calculate the 8 corners of the bounding box to find the screen-space min/max
+    local corners = {}
+    local halfX, halfY, halfZ = characterSize.X / 2, characterSize.Y / 2, characterSize.Z / 2
+
+    local offsets = {
+        Vector3.new(halfX, halfY, halfZ),
+        Vector3.new(halfX, halfY, -halfZ),
+        Vector3.new(halfX, -halfY, halfZ),
+        Vector3.new(halfX, -halfY, -halfZ),
+        Vector3.new(-halfX, halfY, halfZ),
+        Vector3.new(-halfX, halfY, -halfZ),
+        Vector3.new(-halfX, -halfY, halfZ),
+        Vector3.new(-halfX, -halfY, -halfZ),
+    }
+
+    local minX, maxX = math.huge, -math.huge
+    local minY, maxY = math.huge, -math.huge
+    local anyCornerOnScreen = false
+
+    -- Project all 8 corners to screen space to find the overall 2D bounding box
+    for _, offset in ipairs(offsets) do
+        local worldPoint = characterCFrame * CFrame.new(offset)
+        local screenPoint, onScreen = camera:WorldToScreenPoint(worldPoint.Position)
+
+        if onScreen then
+            anyCornerOnScreen = true
+            minX = math.min(minX, screenPoint.X)
+            maxX = math.max(maxX, screenPoint.X)
+            minY = math.min(minY, screenPoint.Y)
+            maxY = math.max(maxY, screenPoint.Y)
+        end
+    end
+
+    -- If no part of the character is on screen, disable the BillboardGui and Highlight
+    if not anyCornerOnScreen then
+        nametagGui.Enabled = false
+        playerHighlight.Enabled = false
+        return
+    else
+        nametagGui.Enabled = true
+        playerHighlight.Enabled = true
+    end
+
+    -- Calculate the pixel dimensions for the 2D box based on screen projection
+    local boxPixelWidth = maxX - minX
+    local boxPixelHeight = maxY - minY
+
+    -- Calculate the health bar's actual width, clamping it between min and max
+    local desiredHealthBarWidth = boxPixelWidth * HEALTH_BAR_RELATIVE_FACTOR
+    local actualHealthBarWidth = math.clamp(desiredHealthBarWidth, HEALTH_BAR_MIN_PIXEL_WIDTH_FOR_VISIBILITY, HEALTH_BAR_MAX_PIXEL_WIDTH)
+
+    -- Calculate total GUI dimensions including health bar and spacing
+    local totalGuiWidth = actualHealthBarWidth + HEALTH_BAR_OFFSET_X + boxPixelWidth
+    local totalGuiHeight = NAMETAG_HEIGHT_PIXELS + boxPixelHeight + DISTANCE_LABEL_HEIGHT_PIXELS
+
+    -- Set the BillboardGui's total size
+    nametagGui.Size = UDim2.new(0, totalGuiWidth, 0, totalGuiHeight)
+
+    -- Position the BillboardGui's center to align with the character's bounding box center
+    nametagGui.StudsOffset = characterCFrame.Position - humanoidRootPart.CFrame.Position
+
+    -- Get references to the internal GUI elements
+    local nameLabel = nametagGui:FindFirstChild("NameLabel")
+    local boxFrame = nametagGui:FindFirstChild("PlayerBox")
+    local distanceLabel = nametagGui:FindFirstChild("DistanceLabel")
+    local healthBarContainer = nametagGui:FindFirstChild("HealthBarContainer")
+    local healthBarFill = healthBarContainer and healthBarContainer:FindFirstChild("HealthBarFill")
+
+    -- Position and size the internal GUI elements
+    if nameLabel then
+        nameLabel.Position = UDim2.new(0, actualHealthBarWidth + HEALTH_BAR_OFFSET_X, 0, 0)
+        nameLabel.Size = UDim2.new(0, boxPixelWidth, 0, NAMETAG_HEIGHT_PIXELS)
+        nameLabel.Text = player.DisplayName or player.Name
+    end
+
+    if boxFrame then
+        boxFrame.Position = UDim2.new(0, actualHealthBarWidth + HEALTH_BAR_OFFSET_X, 0, NAMETAG_HEIGHT_PIXELS)
+        boxFrame.Size = UDim2.new(0, boxPixelWidth, 0, boxPixelHeight)
+    end
+
+    if distanceLabel and localPlayer and localPlayer.Character and localPlayer.Character:FindFirstChild("HumanoidRootPart") then
+        local localHRP = localPlayer.Character.HumanoidRootPart
+        local distance = math.floor((localHRP.Position - humanoidRootPart.Position).Magnitude + 0.5)
+        -- MODIFIED: Change distance text color to white, remove brackets, add 'm'
+        distanceLabel.Text = distance .. "m"
+        distanceLabel.TextColor3 = Color3.fromRGB(255, 255, 255) -- White color
+        distanceLabel.Position = UDim2.new(0, actualHealthBarWidth + HEALTH_BAR_OFFSET_X, 0, NAMETAG_HEIGHT_PIXELS + boxPixelHeight)
+        distanceLabel.Size = UDim2.new(0, boxPixelWidth, 0, DISTANCE_LABEL_HEIGHT_PIXELS)
+    end
+
+    if healthBarContainer and healthBarFill then
+        healthBarContainer.Position = UDim2.new(0, 0, 0, NAMETAG_HEIGHT_PIXELS)
+        healthBarContainer.Size = UDim2.new(0, actualHealthBarWidth, 0, boxPixelHeight)
+        updateHealthBar(humanoid, healthBarFill) -- Update health bar fill and color
+    end
+end
+
+-- Function to create a new nametag (initial setup of the GUI elements)
+local function createNametag(player)
+    -- Ensure the player has a character and a HumanoidRootPart
+    local character = player.Character
+    if not character then
+        return -- Character not loaded yet, wait for CharacterAdded
+    end
+
+    local humanoidRootPart = character:FindFirstChild("HumanoidRootPart")
+    local humanoid = character:FindFirstChildOfClass("Humanoid")
+    if not humanoidRootPart or not humanoid then
+        return -- HumanoidRootPart or Humanoid not found
+    end
+
+    -- Check if a nametag already exists for this player to prevent duplicates
+    if activeNametags[player] and activeNametags[player].BillboardGui and activeNametags[player].BillboardGui.Parent then
+        return -- Nametag already exists and is parented, no need to create again
+    end
+
+    -- Create the BillboardGui that will contain all elements
+    local billboardGui = Instance.new("BillboardGui")
+    billboardGui.Name = "PlayerESP"
+    billboardGui.Adornee = humanoidRootPart
+    billboardGui.AlwaysOnTop = true
+    billboardGui.ExtentsOffset = Vector3.new(0, 0, 0)
+    billboardGui.LightInfluence = 0
+    billboardGui.Parent = character
+
+    -- Create the TextLabel for the nametag (at the top)
+    local nameLabel = Instance.new("TextLabel")
+    nameLabel.Name = "NameLabel"
+    nameLabel.Font = Enum.Font.GothamBold
+    nameLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+    nameLabel.TextStrokeColor3 = Color3.fromRGB(0, 0, 0)
+    nameLabel.TextStrokeTransparency = 0.8
+    nameLabel.TextScaled = true
+    nameLabel.BackgroundTransparency = 1
+    nameLabel.TextXAlignment = Enum.TextXAlignment.Center
+    nameLabel.TextYAlignment = Enum.TextYAlignment.Center
+    nameLabel.Parent = billboardGui
+
+    -- Create the Frame for the 2D box (in the middle)
+    local boxFrame = Instance.new("Frame")
+    boxFrame.Name = "PlayerBox"
+    boxFrame.BackgroundTransparency = 0.7
+    boxFrame.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+    boxFrame.BorderSizePixel = 2 -- Thicker border
+    boxFrame.BorderColor3 = Color3.fromRGB(255, 255, 255)
+    boxFrame.Parent = billboardGui
+
+    -- Create the TextLabel for the distance (at the bottom)
+    local distanceLabel = Instance.new("TextLabel")
+    distanceLabel.Name = "DistanceLabel"
+    -- MODIFIED: Default color for creation is now white
+    distanceLabel.TextColor3 = Color3.fromRGB(255, 255, 255) -- White color
+    distanceLabel.TextStrokeColor3 = Color3.fromRGB(0, 0, 0)
+    distanceLabel.TextStrokeTransparency = 0.8
+    distanceLabel.TextScaled = true
+    distanceLabel.BackgroundTransparency = 1
+    distanceLabel.TextXAlignment = Enum.TextXAlignment.Center
+    distanceLabel.TextYAlignment = Enum.TextYAlignment.Center
+    distanceLabel.Parent = billboardGui
+
+    -- Create Health Bar Container (background)
+    local healthBarContainer = Instance.new("Frame")
+    healthBarContainer.Name = "HealthBarContainer"
+    healthBarContainer.BackgroundTransparency = 0.7
+    healthBarContainer.BackgroundColor3 = Color3.fromRGB(50, 50, 50) -- Dark gray background
+    healthBarContainer.BorderSizePixel = 1
+    healthBarContainer.BorderColor3 = Color3.fromRGB(255, 255, 255)
+    healthBarContainer.Parent = billboardGui
+
+    -- Create Health Bar Fill (dynamic part)
+    local healthBarFill = Instance.new("Frame")
+    healthBarFill.Name = "HealthBarFill"
+    healthBarFill.BackgroundTransparency = 0
+    healthBarFill.BorderSizePixel = 0
+    healthBarFill.Parent = healthBarContainer
+
+    -- Create the Highlight object for the glow effect
+    local playerHighlight = Instance.new("Highlight")
+    playerHighlight.Name = "PlayerHighlight"
+    playerHighlight.Adornee = character -- Make the entire character glow
+    playerHighlight.FillColor = Color3.fromRGB(0, 255, 0) -- Set to vibrant green
+    playerHighlight.OutlineColor = Color3.fromRGB(0, 255, 0) -- Same color for outline
+    playerHighlight.FillTransparency = 0.5 -- Creates the "fade" or thicker glow effect
+    playerHighlight.OutlineTransparency = 0 -- Solid outline
+    playerHighlight.DepthMode = Enum.HighlightDepthMode.Occluded -- Crucial: won't show through walls
+    playerHighlight.Enabled = true
+    playerHighlight.Parent = character
+
+    -- Store all references in our table
+    activeNametags[player] = {
+        BillboardGui = billboardGui,
+        Highlight = playerHighlight,
+        Humanoid = humanoid, -- Store humanoid reference for health updates
+        HealthBarFill = healthBarFill -- Store health bar fill reference
+    }
+
+    -- Connect HealthChanged event for live updates
+    humanoid.HealthChanged:Connect(function()
+        updateHealthBar(humanoid, healthBarFill)
+    end)
+
+    print("Created nametag, box, distance, highlight, and health bar elements for: " .. player.Name)
+    -- Perform an initial update to set the correct size and position
+    updateNametagAndBox(player)
+end
+
+-- Function to remove a nametag and box for a player
+local function removeNametag(player)
+    local guiAndHighlight = activeNametags[player]
+    if guiAndHighlight then
+        if guiAndHighlight.BillboardGui and guiAndHighlight.BillboardGui.Parent then
+            guiAndHighlight.BillboardGui:Destroy()
+        end
+        if guiAndHighlight.Highlight and guiAndHighlight.Highlight.Parent then
+            guiAndHighlight.Highlight:Destroy()
+        end
+        activeNametags[player] = nil
+        print("Removed nametag, box, distance, highlight, and health bar for: " .. player.Name)
+    end
+end
+
+-- Function to handle player character added/respawned
+local function onCharacterAdded(player, character)
+    -- Give a small delay to ensure HumanoidRootPart and Humanoid are ready
+    task.wait(0.1)
+    createNametag(player)
+end
+
+-- Event listener for when a player joins the game
+Players.PlayerAdded:Connect(function(player)
+    -- Skip the local player so they don't have a nametag above their own head
+    if player == localPlayer then return end
+
+    -- Connect CharacterAdded for this new player to handle initial spawn and respawns
+    player.CharacterAdded:Connect(function(character)
+        onCharacterAdded(player, character)
+    end)
+
+    -- If the character is already loaded (e.g., if the script starts late), create nametag immediately
+    if player.Character then
+        onCharacterAdded(player, player.Character)
+    end
+end)
+
+-- Event listener for when a player leaves the game
+Players.PlayerRemoving:Connect(function(player)
+    removeNametag(player)
+end)
+
+-- Initial setup: Create nametags for all players already in the game
+for _, player in ipairs(Players:GetPlayers()) do
+    -- Skip the local player if you don't want a nametag above your own head
+    if player == localPlayer then continue end
+
+    -- Connect CharacterAdded for existing players to handle respawns
+    player.CharacterAdded:Connect(function(character)
+        onCharacterAdded(player, character)
+    end)
+
+    -- Create nametag if character is already loaded
+    if player.Character then
+        onCharacterAdded(player, player.Character)
+    end
+end
+
+-- Get the camera reference once it's available
+if workspace.CurrentCamera then
+    camera = workspace.CurrentCamera
+else
+    workspace:GetPropertyChangedSignal("CurrentCamera"):Connect(function()
+        camera = workspace.CurrentCamera
+    end)
+end
+
+-- Function to create the FOV circle GUI
+local fovCircle = nil -- Declare it here to be accessible globally
+
+local function createFovCircle()
+    local playerGui = localPlayer:FindFirstChildOfClass("PlayerGui")
+    if not playerGui then return nil end -- Return nil if PlayerGui isn't ready
+
+    local screenGui = Instance.new("ScreenGui")
+    screenGui.Name = "FOV_Gui"
+    screenGui.DisplayOrder = 10 -- Ensure it's on top of other GUIs
+    screenGui.IgnoreGuiInset = true -- Crucial for centering correctly on the screen
+    screenGui.Parent = playerGui
+
+    local fovFrame = Instance.new("Frame")
+    fovFrame.Name = "FOV_Circle"
+    fovFrame.Size = UDim2.new(0, FOV_CIRCLE_RADIUS_PIXELS * 2, 0, FOV_CIRCLE_RADIUS_PIXELS * 2) -- Diameter
+    -- Position will be updated by RenderStepped to follow mouse
+    fovFrame.BackgroundTransparency = FOV_CIRCLE_TRANSPARENCY -- Set to 1 for outline
+    fovFrame.BackgroundColor3 = FOV_CIRCLE_COLOR
+    fovFrame.BorderSizePixel = FOV_CIRCLE_BORDER_THICKNESS -- Use new thickness
+    fovFrame.BorderColor3 = FOV_CIRCLE_COLOR -- White border
+
+    local uiCorner = Instance.new("UICorner")
+    uiCorner.CornerRadius = UDim.new(1, 0) -- Makes it a perfect circle
+    uiCorner.Parent = fovFrame
+
+    fovFrame.Parent = screenGui
+
+    return fovFrame
+end
+
+-- Function to check if a screen point is inside the FOV circle
+local function isScreenPointInFovCircle(screenPoint, fovCircleFrame)
+    if not fovCircleFrame or not camera then return false end
+    -- The circle's center is its AbsolutePosition + half its AbsoluteSize
+    local circleCenter = fovCircleFrame.AbsolutePosition + fovCircleFrame.AbsoluteSize / 2
+    local distance = (screenPoint - circleCenter).Magnitude
+    return distance <= FOV_CIRCLE_RADIUS_PIXELS
+end
+
+-- Handle mouse button input for aimbot activation
+UserInputService.InputBegan:Connect(function(input, gameProcessedEvent)
+    -- Check for Right Mouse Button (MouseButton2) and ensure it's not processed by game UI
+    if input.UserInputType == Enum.UserInputType.MouseButton2 and not gameProcessedEvent then
+        isRightMouseDown = true
+    end
+end)
+
+UserInputService.InputEnded:Connect(function(input, gameProcessedEvent)
+    -- Check for Right Mouse Button (MouseButton2)
+    if input.UserInputType == Enum.UserInputType.MouseButton2 then
+        isRightMouseDown = false
+    end
+end)
+
+-- Initialize FOV circle only once
+fovCircle = createFovCircle()
+
+-- Main loop to update nametag and box positions/sizes every frame
+RunService.RenderStepped:Connect(function()
+    -- Update all ESP elements
+    for player, guiAndHighlight in pairs(activeNametags) do
+        updateNametagAndBox(player)
+    end
+
+    -- Update FOV circle position to follow mouse cursor
+    if fovCircle then
+        local mousePos = UserInputService:GetMouseLocation()
+        -- Center the FOV circle on the mouse cursor.
+        -- We subtract the radius to position the top-left corner correctly.
+        fovCircle.Position = UDim2.new(0, mousePos.X - FOV_CIRCLE_RADIUS_PIXELS, 0, mousePos.Y - FOV_CIRCLE_RADIUS_PIXELS)
+    end
+
+    -- Aimbot logic (active when right mouse button is held)
+    if isRightMouseDown and camera and localPlayer and localPlayer.Character then
+        local bestTarget = nil
+        local closestToFovCenterDistance = math.huge
+
+        -- Get the current center of the FOV circle (which follows the mouse)
+        local fovCircleCenter = fovCircle.AbsolutePosition + fovCircle.AbsoluteSize / 2
+
+        for _, player in ipairs(Players:GetPlayers()) do
+            if player ~= localPlayer and player.Character and player.Character:FindFirstChildOfClass("Humanoid") and player.Character.Humanoid.Health > 0 then
+                local head = player.Character:FindFirstChild("Head")
+                if head then
+                    local screenPoint, onScreen = camera:WorldToScreenPoint(head.Position)
+                    local screenPos2D = Vector2.new(screenPoint.X, screenPoint.Y)
+
+                    -- Check if player's head is on screen AND within the moving FOV circle
+                    if onScreen and isScreenPointInFovCircle(screenPos2D, fovCircle) then
+                        local distanceToFovCenter = (screenPos2D - fovCircleCenter).Magnitude -- Corrected variable name
+                        if distanceToFovCenter < closestToFovCenterDistance then
+                            closestToFovCenterDistance = distanceToFovCenter
+                            bestTarget = head
+                        end
+                    end
+                end
+            end
+        end
+
+        if bestTarget then
+            -- Calculate mouse delta needed to move to target's head screen position
+            local targetScreenPoint, _ = camera:WorldToScreenPoint(bestTarget.Position)
+            local currentMousePos = UserInputService:GetMouseLocation()
+
+            local deltaX = targetScreenPoint.X - currentMousePos.X
+            local deltaY = targetScreenPoint.Y - currentMousePos.Y
+
+            -- Apply the mouse delta instantly and continuously while right-click is held
+            UserInputService:SetMouseDelta(Vector2.new(deltaX, deltaY))
+        end
+    end
+end)
+
+-- Periodic check for nametag updates (every 5 seconds) - still useful for general cleanup
+local lastPeriodicCheckTime = 0
+RunService.Heartbeat:Connect(function(deltaTime)
+    lastPeriodicCheckTime = lastPeriodicCheckTime + deltaTime
+    if lastPeriodicCheckTime >= UPDATE_INTERVAL then
+        lastPeriodicCheckTime = 0 -- Reset timer
+
+        local currentPlayers = Players:GetPlayers()
+        local playersInGame = {}
+
+        -- Populate a set of players currently in the game
+        for _, player in ipairs(currentPlayers) do
+            playersInGame[player] = true
+        end
+
+        -- Check for players who should have nametags but don't (or need update)
+        for _, player in ipairs(currentPlayers) do
+            if player == localPlayer then continue end
+
+            local guiAndHighlight = activeNametags[player]
+            local character = player.Character
+            local humanoidRootPart = character and character:FindFirstChild("HumanoidRootPart")
+            local humanoid = character and character:FindFirstChildOfClass("Humanoid")
+
+            -- Check if BillboardGui, Highlight, or Humanoid are missing/broken
+            if not guiAndHighlight or not guiAndHighlight.BillboardGui or not guiAndHighlight.BillboardGui.Parent or
+               not guiAndHighlight.Highlight or not guiAndHighlight.Highlight.Parent or
+               guiAndHighlight.BillboardGui.Adornee ~= humanoidRootPart or not humanoid then
+                -- Elements missing, destroyed, or adornee changed (e.g., after respawn)
+                removeNametag(player) -- Clean up any old, broken references
+                createNametag(player) -- Recreate it
+            end
+        end
+
+        -- Clean up nametags for players who have left but are still in our table
+        for player, guiAndHighlight in pairs(activeNametags) do
+            if not playersInGame[player] then
+                removeNametag(player)
+            end
+        end
+    end
+end)
+
+print("Nametag and ESP box script initialized!")
