@@ -417,8 +417,8 @@ local function createNametag(player)
     local playerHighlight = Instance.new("Highlight")
     playerHighlight.Name = "PlayerHighlight"
     playerHighlight.Adornee = character -- Make the entire character glow
-    playerHighlight.FillColor = Color3.fromRGB(0, 255, 0) -- Set to vibrant green
-    playerHighlight.OutlineColor = Color3.fromRGB(0, 255, 0) -- Same color for outline
+    playerHighlight.FillColor = Color3.fromRGB(255, 0, 0) -- Set to vibrant green
+    playerHighlight.OutlineColor = Color3.fromRGB(255, 0, 0) -- Same color for outline
     playerHighlight.FillTransparency = 0.5 -- Creates the "fade" or thicker glow effect
     playerHighlight.OutlineTransparency = 0 -- Solid outline
     playerHighlight.DepthMode = Enum.HighlightDepthMode.Occluded -- Crucial: won't show through walls
