@@ -7,7 +7,7 @@ local Camera = workspace.CurrentCamera
 
 -- Configuration
 local SETTINGS = {
-    FOV = 130, -- Targeting radius in pixels
+    FOV = 180, -- Targeting radius in pixels
     AimKey = Enum.UserInputType.MouseButton2, -- Right mouse button
     EdgeOffset = 0.1, -- How close to edge (0-1)
     DistanceMultiplier = 0.02, -- 2% higher per 10m
