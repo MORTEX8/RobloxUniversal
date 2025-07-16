@@ -1,69 +1,35 @@
--- This script modifies the HumanoidRootPart and Head of other players in the game.
+local minSize = 2.5
+local maxSize = 15
+local minDistanceMeters = 6 -- 10 meters minimum
+local maxDistanceMeters = 140 -- 200 meters maximum
 
-local Players = game:GetService("Players")
-local RunService = game:GetService("RunService")
+local STUD_TO_METER = 0.28 -- Roblox conversion factor (1 stud ≈ 0.28 meters)
 
--- Player Info (these are global variables for configuration)
-_G.Disabled = true -- Set to 'true' to enable the script's effects, 'false' to disable.
+while wait(0.1) do
+    local me = game.Players.LocalPlayer
+    if not me.Character or not me.Character:FindFirstChild("HumanoidRootPart") then continue end
 
--- Configuration for HumanoidRootPart size
-_G.HumanoidRootPartSizeX = 2
-_G.HumanoidRootPartSizeY = 4
-_G.HumanoidRootPartSizeZ = 2
+    local myPos = me.Character.HumanoidRootPart.Position
 
--- Configuration for Head size
--- You can change these values to adjust the head's dimensions
-_G.HeadPartSizeX = 3
-_G.HeadPartSizeY = 3
-_G.HeadPartSizeZ = 3
+    for _, player in pairs(game.Players:GetPlayers()) do
+        if player == me then continue end
+        if not player.Character then continue end
+        
+        local head = player.Character:FindFirstChild("Head")
+        local root = player.Character:FindFirstChild("HumanoidRootPart")
+        if not head or not root then continue end
 
--- This section runs every frame to continuously apply the changes.
-RunService.RenderStepped:Connect(function()
-    -- Check if the script is enabled via the _G.Disabled variable.
-    if _G.Disabled then
-        -- Loop through all players currently in the game.
-        for _, player in ipairs(Players:GetPlayers()) do
-            -- Ensure we don't modify the local player's own character.
-            if player.Name ~= Players.LocalPlayer.Name then
-                -- Use pcall to safely attempt modifications, preventing script errors if a character isn't ready.
-                pcall(function()
-                    local character = player.Character
-                    -- Check if the character exists before trying to access its parts.
-                    if character then
-                        -- *** Modify HumanoidRootPart ***
-                        local humanoidRootPart = character:FindFirstChild("HumanoidRootPart")
-                        if humanoidRootPart then
-                            -- Set the size of the HumanoidRootPart using the configured global variables.
-                            humanoidRootPart.Size = Vector3.new(_G.HumanoidRootPartSizeX, _G.HumanoidRootPartSizeY, _G.HumanoidRootPartSizeZ)
-                            -- Set the transparency of the HumanoidRootPart.
-                            humanoidRootPart.Transparency = 0.7
-                            -- Set the color of the HumanoidRootPart to "Really blue".
-                            humanoidRootPart.BrickColor = BrickColor.new("Really blue")
-                            -- Set the material of the HumanoidRootPart to "Neon".
-                            humanoidRootPart.Material = Enum.Material.Neon
-                            -- Make the HumanoidRootPart non-collidable so players can walk through it.
-                            humanoidRootPart.CanCollide = false
-                        end
+        -- Calculate distance in meters
+        local distanceMeters = (myPos - root.Position).Magnitude * STUD_TO_METER
 
-                        -- *** Modify Head ***
-                        local head = character:FindFirstChild("Head")
-                        if head then
-                            -- Set the size of the Head using the configured global variables.
-                            head.Size = Vector3.new(_G.HeadPartSizeX, _G.HeadPartSizeY, _G.HeadPartSizeZ)
-                            -- Set the transparency of the Head.
-                            head.Transparency = 0.1
-                            -- Set the color of the Head to "Really blue".
-                            head.BrickColor = BrickColor.new("Really blue")
-                            -- Set the material of the Head to "Neon".
-                            head.Material = Enum.Material.Neon
-                            -- Make the Head non-collidable (optional, but consistent with HumanoidRootPart).
-                            head.CanCollide = false
-                        end
-                    end
-                end)
-            end
-        end
+        -- Normalize between min and max distances (0-1 range)
+        local normalized = math.clamp(
+            (distanceMeters - minDistanceMeters) / 
+            (maxDistanceMeters - minDistanceMeters),
+            0, 1
+        )
+
+        -- Apply linear scaling
+        head.Size = Vector3.one * (minSize + (maxSize - minSize) * normalized)
     end
-end)
-
-print("Simplified HumanoidRootPart and Head Modifier Script loaded.")
+end
