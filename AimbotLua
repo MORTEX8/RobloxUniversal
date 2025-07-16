@@ -42,6 +42,13 @@ function Physics.MovementPrediction(Origin, Destination, DestinationVelocity, Pr
     TimeToHit = TimeToHit + (Delta / ProjectileSpeed)
 
     local Actual = Destination + DestinationVelocity * TimeToHit
+    -- Reduce horizontal prediction by 20%
+    local horizontalReduction = 0.8
+    Actual = Vector3.new(
+        Destination.X + (Actual.X - Destination.X) * horizontalReduction,
+        Actual.Y,
+        Destination.Z + (Actual.Z - Destination.Z) * horizontalReduction
+    )
     return Actual
 end
 
@@ -55,7 +62,8 @@ function Physics.Trajectory(Origin, Destination, ProjectileSpeed, ProjectileDrop
     if tostring(DropTime):find("nan") or (Distance <= 100) then
         return 0
     end
-    return DropTime
+    -- Reduce vertical prediction by 50%
+    return DropTime * 0.5
 end
 
 -- Wall Check (Only If Enabled)
