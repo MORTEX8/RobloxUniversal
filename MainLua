@@ -12,8 +12,8 @@ local function createLoaderUI()
     -- Main frame (enlarged to fit new button)
     local mainFrame = Instance.new("Frame")
     mainFrame.Name = "MainFrame"
-    mainFrame.Size = UDim2.new(0, 300, 0, 250)  -- Height increased from 200 to 250
-    mainFrame.Position = UDim2.new(0.5, -150, 0.5, -125)
+    mainFrame.Size = UDim2.new(0, 300, 0, 300)
+    mainFrame.Position = UDim2.new(0.5, -150, 0.5, -150)
     mainFrame.AnchorPoint = Vector2.new(0.5, 0.5)
     mainFrame.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
     mainFrame.BorderSizePixel = 0
@@ -63,7 +63,7 @@ local function createLoaderUI()
         screenGui:Destroy()
     end)
 
-    -- Button container (height increased to fit new button)
+    -- Button container
     local buttonContainer = Instance.new("Frame")
     buttonContainer.Name = "ButtonContainer"
     buttonContainer.Size = UDim2.new(1, -20, 1, -50)
@@ -106,11 +106,12 @@ local function createLoaderUI()
         return button
     end
 
-    -- Create buttons (added SilentAim(WIP) button)
+    -- Create all buttons
     local aimbotButton = createButton("Aimbot", UDim2.new(0, 0, 0, 0))
     local visualsButton = createButton("Visuals", UDim2.new(0, 0, 0, 50))
     local hitboxesButton = createButton("Hitboxes", UDim2.new(0, 0, 0, 100))
     local silentAimButton = createButton("SilentAim(WIP)", UDim2.new(0, 0, 0, 150))
+    local skeletonEspButton = createButton("SkeletonEsp", UDim2.new(0, 0, 0, 200))
 
     -- Function to fetch and execute a script
     local function fetchAndExecute(url, scriptName, button)
@@ -173,6 +174,10 @@ local function createLoaderUI()
         fetchAndExecute("https://raw.githubusercontent.com/MORTEX8/RobloxUniversal/refs/heads/main/SilentAimExp", "SilentAim", silentAimButton)
     end)
 
+    skeletonEspButton.MouseButton1Click:Connect(function()
+        fetchAndExecute("https://raw.githubusercontent.com/MORTEX8/RobloxUniversal/refs/heads/main/SkeletonESP", "SkeletonEsp", skeletonEspButton)
+    end)
+
     -- Make the UI draggable
     local dragging = false
     local dragInput, dragStart, startPos
@@ -204,7 +209,7 @@ local function createLoaderUI()
         end
     end)
 
-    -- Toggle UI with Insert key
+    -- Toggle UI with Insert key (FIXED THIS PART)
     game:GetService("UserInputService").InputBegan:Connect(function(input, gameProcessed)
         if not gameProcessed and input.KeyCode == Enum.KeyCode.Insert then
             uiVisible = not uiVisible
