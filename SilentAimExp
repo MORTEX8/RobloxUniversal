@@ -1,0 +1,143 @@
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local LocalPlayer = Players.LocalPlayer
+local Camera = workspace.CurrentCamera
+local UIS = game:GetService("UserInputService")
+
+-- Settings
+local FOV = 120 -- Targeting radius in pixels
+local HeadDistance = 12 -- Distance in front of you (studs)
+local ActivationKey = Enum.UserInputType.MouseButton1 -- Left click to shoot
+local ShowFOV = true -- Toggle FOV circle
+local BulletTravelTime = 0.1 -- Seconds to simulate bullet travel time
+
+-- Create FOV circle
+local circle = Drawing.new("Circle")
+circle.Visible = ShowFOV
+circle.Radius = FOV
+circle.Color = Color3.fromRGB(255, 50, 50)
+circle.Thickness = 2
+circle.Transparency = 0.7
+circle.Filled = false
+
+-- Track active teleportations
+local activeTeleports = {}
+
+-- Find closest target
+local function getTarget()
+    local closest = nil
+    local closestDist = FOV
+    local mousePos = UIS:GetMouseLocation()
+    
+    for _, player in pairs(Players:GetPlayers()) do
+        if player ~= LocalPlayer and player.Character then
+            local humanoid = player.Character:FindFirstChildOfClass("Humanoid")
+            local head = player.Character:FindFirstChild("Head")
+            
+            if head and humanoid and humanoid.Health > 0 and not activeTeleports[head] then
+                local screenPos = Camera:WorldToViewportPoint(head.Position)
+                if screenPos.Z > 0 then
+                    local dist = (Vector2.new(screenPos.X, screenPos.Y) - mousePos).Magnitude
+                    if dist < closestDist then
+                        closestDist = dist
+                        closest = head
+                    end
+                end
+            end
+        end
+    end
+    
+    return closest
+end
+
+-- Simulate bullet travel and damage
+local function simulateBulletTravel(target, realPosition)
+    -- Wait the bullet travel time before applying damage
+    wait(BulletTravelTime)
+    
+    -- Check if target still exists and is valid
+    if target and target.Parent and target.Parent:FindFirstChildOfClass("Humanoid") then
+        -- Create a ray from camera to the real position
+        local direction = (realPosition - Camera.CFrame.Position).Unit
+        local raycastParams = RaycastParams.new()
+        raycastParams.FilterDescendantsInstances = {LocalPlayer.Character}
+        raycastParams.FilterType = Enum.RaycastFilterType.Blacklist
+        
+        local raycastResult = workspace:Raycast(Camera.CFrame.Position, direction * 1000, raycastParams)
+        
+        -- If we hit something (should always hit the target since we're aiming at them)
+        if raycastResult and raycastResult.Instance:IsDescendantOf(target.Parent) then
+            -- Here you would normally apply damage, but since this is just simulation:
+            print("Simulated hit on", target.Parent.Name)
+        end
+    end
+end
+
+-- Single-frame head teleport
+local function teleportHead(target)
+    if activeTeleports[target] then return end
+    
+    -- Store original properties and position
+    activeTeleports[target] = {
+        cf = target.CFrame,
+        anchored = target.Anchored,
+        canCollide = target.CanCollide,
+        realPosition = target.Position
+    }
+    
+    -- Calculate teleport position
+    local mousePos = UIS:GetMouseLocation()
+    local ray = Camera:ViewportPointToRay(mousePos.X, mousePos.Y)
+    local teleportCF = CFrame.new(ray.Origin + (ray.Direction * HeadDistance))
+    
+    -- Prepare head for teleport
+    target.Anchored = true
+    target.CanCollide = false
+    
+    -- Teleport head for 1 frame
+    target.CFrame = teleportCF
+    
+    -- Start bullet travel simulation
+    spawn(function()
+        simulateBulletTravel(target, activeTeleports[target].realPosition)
+    end)
+    
+    -- Return head immediately on next frame
+    RunService.Heartbeat:Once(function()
+        if target and activeTeleports[target] then
+            target.CFrame = activeTeleports[target].cf
+            target.Anchored = activeTeleports[target].anchored
+            target.CanCollide = activeTeleports[target].canCollide
+            activeTeleports[target] = nil
+        end
+    end)
+end
+
+-- Main loop
+RunService.RenderStepped:Connect(function()
+    -- Update FOV to mouse
+    circle.Position = UIS:GetMouseLocation()
+    
+    -- Shooting activation
+    if UIS:IsMouseButtonPressed(ActivationKey) then
+        local target = getTarget()
+        if target then
+            teleportHead(target)
+        end
+    end
+end)
+
+-- Cleanup
+game:GetService("UserInputService").WindowFocusReleased:Connect(function()
+    -- Return all heads to original positions
+    for target, data in pairs(activeTeleports) do
+        if target then
+            target.CFrame = data.cf
+            target.Anchored = data.anchored
+            target.CanCollide = data.canCollide
+        end
+    end
+    circle:Remove()
+end)
+
+print("1-Frame Silent Aimbot Active | FOV:", FOV, "| Bullet Travel Time:", BulletTravelTime)
