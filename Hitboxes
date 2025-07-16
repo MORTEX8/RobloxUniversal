@@ -8,14 +8,14 @@ _G.Disabled = true -- Set to 'true' to enable the script's effects, 'false' to d
 
 -- Configuration for HumanoidRootPart size
 _G.HumanoidRootPartSizeX = 2
-_G.HumanoidRootPartSizeY = 3
+_G.HumanoidRootPartSizeY = 4
 _G.HumanoidRootPartSizeZ = 2
 
 -- Configuration for Head size
 -- You can change these values to adjust the head's dimensions
-_G.HeadPartSizeX = 2
-_G.HeadPartSizeY = 2
-_G.HeadPartSizeZ = 2
+_G.HeadPartSizeX = 3
+_G.HeadPartSizeY = 3
+_G.HeadPartSizeZ = 3
 
 -- This section runs every frame to continuously apply the changes.
 RunService.RenderStepped:Connect(function()
