@@ -204,6 +204,7 @@ end
 -- Main loop
 local renderSteppedConnection
 local characterAddedConnection
+local currentTarget = nil -- Track locked target for sticky aim
 
 local function initialize()
     -- Disconnect existing connections if they exist
@@ -216,12 +217,48 @@ local function initialize()
         local mousePos = UserInputService:GetMouseLocation()
         fovCircle.Position = mousePos
         
+        -- Reset target if right mouse is released
+        if not UserInputService:IsMouseButtonPressed(SETTINGS.AimKey) then
+            currentTarget = nil
+        end
+        
         -- Aim when holding right mouse button
         if UserInputService:IsMouseButtonPressed(SETTINGS.AimKey) then
-            local target = getTarget()
+            local target = nil
+            
+            -- If we have a locked target, check if it's still valid
+            if currentTarget then
+                local character = currentTarget.Parent
+                local humanoid = character:FindFirstChildOfClass("Humanoid")
+                local head = currentTarget
+                
+                -- Check if target is alive and visible
+                if humanoid and humanoid.Health > 0 and isVisible(character, head) then
+                    target = currentTarget
+                else
+                    currentTarget = nil -- Reset if target is dead/invisible
+                end
+            end
+            
+            -- If no locked target (or it's invalid), find a new one
+            if not target then
+                target = getTarget()
+                currentTarget = target -- Lock onto new target
+            end
+            
+            -- Aim at the target
             if target then
                 local aimPoint = getAimPoint(target)
-                Camera.CFrame = CFrame.lookAt(Camera.CFrame.Position, aimPoint)
+                local screenPoint = Camera:WorldToViewportPoint(aimPoint)
+                if screenPoint.Z > 0 then
+                    local targetPos = Vector2.new(screenPoint.X, screenPoint.Y)
+                    local currentPos = UserInputService:GetMouseLocation()
+                    local moveX = targetPos.X - currentPos.X
+                    local moveY = targetPos.Y - currentPos.Y
+                    
+                    -- Move the actual mouse
+                    mousemoverel(moveX, moveY)
+                end
             end
         end
     end)
