@@ -1,13 +1,121 @@
--- Roblox External Script Loader
--- Fetches and executes scripts from GitHub
+-- Roblox External Script Loader with UI
+-- Creates a UI with buttons that load scripts when clicked
 
-local function loadExternalScripts()
-    -- URLs for the scripts
-    local aimbotUrl = "https://raw.githubusercontent.com/MORTEX8/RobloxUniversal/refs/heads/main/AimbotLua"
-    local visualsUrl = "https://raw.githubusercontent.com/MORTEX8/RobloxUniversal/refs/heads/main/VisualsLua"
+local uiVisible = true
+
+local function createLoaderUI()
+    -- Create the main screen GUI
+    local screenGui = Instance.new("ScreenGui")
+    screenGui.Name = "ScriptLoaderUI"
+    screenGui.Parent = game:GetService("CoreGui") or game.Players.LocalPlayer:WaitForChild("PlayerGui")
+
+    -- Main frame (enlarged to fit new button)
+    local mainFrame = Instance.new("Frame")
+    mainFrame.Name = "MainFrame"
+    mainFrame.Size = UDim2.new(0, 300, 0, 250)  -- Height increased from 200 to 250
+    mainFrame.Position = UDim2.new(0.5, -150, 0.5, -125)
+    mainFrame.AnchorPoint = Vector2.new(0.5, 0.5)
+    mainFrame.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+    mainFrame.BorderSizePixel = 0
+    mainFrame.Parent = screenGui
+
+    -- Add outline to main frame
+    local outline = Instance.new("UIStroke")
+    outline.Name = "Outline"
+    outline.Color = Color3.fromRGB(171, 128, 214)
+    outline.Thickness = 2
+    outline.Parent = mainFrame
+
+    -- Title
+    local title = Instance.new("TextLabel")
+    title.Name = "Title"
+    title.Size = UDim2.new(1, 0, 0, 30)
+    title.Position = UDim2.new(0, 0, 0, 0)
+    title.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+    title.BorderSizePixel = 0
+    title.Text = "Neverdies.me"
+    title.TextColor3 = Color3.fromRGB(255, 255, 255)
+    title.Font = Enum.Font.GothamBold
+    title.TextSize = 18
+    title.Parent = mainFrame
+
+    -- Add outline to title
+    local titleOutline = Instance.new("UIStroke")
+    titleOutline.Name = "TitleOutline"
+    titleOutline.Color = Color3.fromRGB(171, 128, 214)
+    titleOutline.Thickness = 2
+    titleOutline.Parent = title
+
+    -- Close button
+    local closeButton = Instance.new("TextButton")
+    closeButton.Name = "CloseButton"
+    closeButton.Size = UDim2.new(0, 30, 0, 30)
+    closeButton.Position = UDim2.new(1, -30, 0, 0)
+    closeButton.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
+    closeButton.BorderSizePixel = 0
+    closeButton.Text = "X"
+    closeButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+    closeButton.Font = Enum.Font.GothamBold
+    closeButton.TextSize = 18
+    closeButton.Parent = mainFrame
     
+    closeButton.MouseButton1Click:Connect(function()
+        screenGui:Destroy()
+    end)
+
+    -- Button container (height increased to fit new button)
+    local buttonContainer = Instance.new("Frame")
+    buttonContainer.Name = "ButtonContainer"
+    buttonContainer.Size = UDim2.new(1, -20, 1, -50)
+    buttonContainer.Position = UDim2.new(0, 10, 0, 40)
+    buttonContainer.BackgroundTransparency = 1
+    buttonContainer.Parent = mainFrame
+
+    -- Function to create buttons
+    local function createButton(name, position)
+        local button = Instance.new("TextButton")
+        button.Name = name.."Button"
+        button.Size = UDim2.new(1, 0, 0, 40)
+        button.Position = position
+        button.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+        button.BorderSizePixel = 0
+        button.Text = name
+        button.TextColor3 = Color3.fromRGB(255, 255, 255)
+        button.Font = Enum.Font.Gotham
+        button.TextSize = 16
+        button.Parent = buttonContainer
+        
+        -- Add outline to button
+        local buttonOutline = Instance.new("UIStroke")
+        buttonOutline.Name = "ButtonOutline"
+        buttonOutline.Color = Color3.fromRGB(80, 80, 80)
+        buttonOutline.Thickness = 1
+        buttonOutline.Parent = button
+        
+        -- Hover effects
+        button.MouseEnter:Connect(function()
+            button.BackgroundColor3 = Color3.fromRGB(80, 80, 80)
+            buttonOutline.Color = Color3.fromRGB(100, 100, 100)
+        end)
+        
+        button.MouseLeave:Connect(function()
+            button.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+            buttonOutline.Color = Color3.fromRGB(80, 80, 80)
+        end)
+        
+        return button
+    end
+
+    -- Create buttons (added SilentAim(WIP) button)
+    local aimbotButton = createButton("Aimbot", UDim2.new(0, 0, 0, 0))
+    local visualsButton = createButton("Visuals", UDim2.new(0, 0, 0, 50))
+    local hitboxesButton = createButton("Hitboxes", UDim2.new(0, 0, 0, 100))
+    local silentAimButton = createButton("SilentAim(WIP)", UDim2.new(0, 0, 0, 150))
+
     -- Function to fetch and execute a script
-    local function fetchAndExecute(url, scriptName)
+    local function fetchAndExecute(url, scriptName, button)
+        button.Text = "Loading..."
+        
         local success, response = pcall(function()
             return game:HttpGetAsync(url, true)
         end)
@@ -18,24 +126,97 @@ local function loadExternalScripts()
             end)
             
             if executeSuccess then
-                print(scriptName.." loaded successfully!")
+                button.BackgroundColor3 = Color3.fromRGB(171, 128, 214)
+                button.Text = scriptName.." loaded!"
+                
+                -- Reset button after 2 seconds
+                delay(2, function()
+                    button.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+                    button.Text = scriptName
+                end)
             else
                 warn("Failed to execute "..scriptName..": "..tostring(errorMsg))
+                button.Text = "Error loading "..scriptName
+                
+                -- Reset button after 2 seconds
+                delay(2, function()
+                    button.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+                    button.Text = scriptName
+                end)
             end
         else
             warn("Failed to fetch "..scriptName..": "..tostring(response))
+            button.Text = "Error fetching "..scriptName
+            
+            -- Reset button after 2 seconds
+            delay(2, function()
+                button.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+                button.Text = scriptName
+            end)
         end
     end
-    
-    -- Load Aimbot script
-    fetchAndExecute(aimbotUrl, "Aimbot Script")
-    
-    -- Load Visuals script
-    fetchAndExecute(visualsUrl, "Visuals Script")
+
+    -- Button click handlers
+    aimbotButton.MouseButton1Click:Connect(function()
+        fetchAndExecute("https://raw.githubusercontent.com/MORTEX8/RobloxUniversal/refs/heads/main/AimbotLua", "Aimbot", aimbotButton)
+    end)
+
+    visualsButton.MouseButton1Click:Connect(function()
+        fetchAndExecute("https://raw.githubusercontent.com/MORTEX8/RobloxUniversal/refs/heads/main/VisualsLua", "Visuals", visualsButton)
+    end)
+
+    hitboxesButton.MouseButton1Click:Connect(function()
+        fetchAndExecute("https://raw.githubusercontent.com/MORTEX8/RobloxUniversal/refs/heads/main/Hitboxes", "Hitboxes", hitboxesButton)
+    end)
+
+    silentAimButton.MouseButton1Click:Connect(function()
+        fetchAndExecute("https://raw.githubusercontent.com/MORTEX8/RobloxUniversal/refs/heads/main/SilentAimExp", "SilentAim", silentAimButton)
+    end)
+
+    -- Make the UI draggable
+    local dragging = false
+    local dragInput, dragStart, startPos
+
+    title.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 then
+            dragging = true
+            dragStart = input.Position
+            startPos = mainFrame.Position
+            
+            input.Changed:Connect(function()
+                if input.UserInputState == Enum.UserInputState.End then
+                    dragging = false
+                end
+            end)
+        end
+    end)
+
+    title.InputChanged:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseMovement then
+            dragInput = input
+        end
+    end)
+
+    game:GetService("UserInputService").InputChanged:Connect(function(input)
+        if input == dragInput and dragging then
+            local delta = input.Position - dragStart
+            mainFrame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+        end
+    end)
+
+    -- Toggle UI with Insert key
+    game:GetService("UserInputService").InputBegan:Connect(function(input, gameProcessed)
+        if not gameProcessed and input.KeyCode == Enum.KeyCode.Insert then
+            uiVisible = not uiVisible
+            screenGui.Enabled = uiVisible
+        end
+    end)
+
+    return screenGui
 end
 
--- Execute the loader with error protection
-local success, err = pcall(loadExternalScripts)
+-- Create the UI with error protection
+local success, err = pcall(createLoaderUI)
 if not success then
-    warn("Loader failed: "..tostring(err))
+    warn("UI creation failed: "..tostring(err))
 end
