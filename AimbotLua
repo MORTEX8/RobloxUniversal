@@ -1,15 +1,9 @@
--- Enhanced Aimbot with Physics-Based Prediction and Game-Specific Team Checks
+-- Enhanced Aimbot with Physics-Based Prediction (No Team/Wall Checks)
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
 local LocalPlayer = Players.LocalPlayer
 local Camera = workspace.CurrentCamera
-
--- Game IDs
-local GAME_IDS = {
-    COUNTER_BLOX = 301549746,
-    ARSENAL = 286090429
-}
 
 -- Configuration
 local SETTINGS = {
@@ -20,46 +14,13 @@ local SETTINGS = {
     MinElevation = 0, -- Minimum aim elevation
     MaxElevation = 0.3, -- Maximum aim elevation
     Prediction = true, -- Enable prediction
-    WallCheck = false, -- Check if target is visible
     BasePrediction = 0.5, -- Base prediction multiplier
     SpeedSensitivity = 0.1, -- How much velocity affects prediction (10%)
     ProjectileSpeed = 1000, -- Added for physics prediction
     ProjectileDrop = 9.8 -- Added for physics prediction (gravity)
 }
 
--- Check if current game is Counter Blox or Arsenal
-local function isTeamBasedGame()
-    local gameId = game.PlaceId
-    return gameId == GAME_IDS.COUNTER_BLOX or gameId == GAME_IDS.ARSENAL
-end
-
--- Check if target is on enemy team (for team-based games)
-local function isEnemy(targetPlayer)
-    if not isTeamBasedGame() then return true end
-    
-    -- Arsenal team check
-    if game.PlaceId == GAME_IDS.ARSENAL then
-        local localTeam = LocalPlayer.Team
-        local targetTeam = targetPlayer.Team
-        return localTeam ~= targetTeam
-    end
-    
-    -- Counter Blox team check
-    if game.PlaceId == GAME_IDS.COUNTER_BLOX then
-        local localChar = LocalPlayer.Character
-        local targetChar = targetPlayer.Character
-        if localChar and targetChar then
-            -- Counter Blox uses different team identification
-            local localTeam = localChar:FindFirstChild("TeamTag")
-            local targetTeam = targetChar:FindFirstChild("TeamTag")
-            return localTeam and targetTeam and localTeam.Value ~= targetTeam.Value
-        end
-    end
-    
-    return true
-end
-
--- FOV Circle (Now follows mouse)
+-- FOV Circle (Follows mouse)
 local fovCircle = Drawing.new("Circle")
 fovCircle.Color = Color3.new(1, 1, 1)
 fovCircle.Thickness = 1
@@ -102,20 +63,6 @@ function Physics.Trajectory(Origin, Destination, ProjectileSpeed, ProjectileDrop
     end
     -- Reduce vertical prediction by 50%
     return DropTime * 0.5
-end
-
--- Wall Check (Only If Enabled)
-local function isVisible(target, part)
-    if not SETTINGS.WallCheck then return true end
-    
-    local origin = Camera.CFrame.Position
-    local direction = (part.Position - origin).Unit * 1000
-    local raycastParams = RaycastParams.new()
-    raycastParams.FilterDescendantsInstances = {LocalPlayer.Character, target}
-    raycastParams.FilterType = Enum.RaycastFilterType.Blacklist
-    
-    local raycastResult = workspace:Raycast(origin, direction, raycastParams)
-    return raycastResult and raycastResult.Instance:IsDescendantOf(target)
 end
 
 -- Enhanced Prediction with Physics
@@ -175,17 +122,12 @@ local function getTarget()
     
     for _, player in ipairs(Players:GetPlayers()) do
         if player ~= LocalPlayer and player.Character then
-            -- Skip if team-based game and not enemy
-            if isTeamBasedGame() and not isEnemy(player) then
-                continue
-            end
-            
             local humanoid = player.Character:FindFirstChildOfClass("Humanoid")
             local head = player.Character:FindFirstChild("Head")
             
             if head and (not humanoid or humanoid.Health > 0) then
                 local screenPos = Camera:WorldToViewportPoint(head.Position)
-                if screenPos.Z > 0 and isVisible(player.Character, head) then
+                if screenPos.Z > 0 then -- No wall check
                     local targetPos = Vector2.new(screenPos.X, screenPos.Y)
                     local dist = (mousePos - targetPos).Magnitude
                     
@@ -226,17 +168,16 @@ local function initialize()
         if UserInputService:IsMouseButtonPressed(SETTINGS.AimKey) then
             local target = nil
             
-            -- If we have a locked target, check if it's still valid
+            -- If we have a locked target, check if it's still alive
             if currentTarget then
                 local character = currentTarget.Parent
                 local humanoid = character:FindFirstChildOfClass("Humanoid")
                 local head = currentTarget
                 
-                -- Check if target is alive and visible
-                if humanoid and humanoid.Health > 0 and isVisible(character, head) then
+                if humanoid and humanoid.Health > 0 then
                     target = currentTarget
                 else
-                    currentTarget = nil -- Reset if target is dead/invisible
+                    currentTarget = nil -- Reset if target is dead
                 end
             end
             
@@ -272,13 +213,4 @@ end)
 -- Initial setup
 initialize()
 
--- Print game-specific info
-local gameName = "Unknown"
-if game.PlaceId == GAME_IDS.COUNTER_BLOX then
-    gameName = "Counter Blox"
-elseif game.PlaceId == GAME_IDS.ARSENAL then
-    gameName = "Arsenal"
-end
-
-print(string.format("Enhanced Aimbot Active | Game: %s | FOV: %d | Team Check: %s", 
-    gameName, SETTINGS.FOV, tostring(isTeamBasedGame())))
+print(string.format("Enhanced Aimbot Active | FOV: %d | Sticky Aim: ON", SETTINGS.FOV))
