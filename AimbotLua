@@ -192,18 +192,4 @@ end)
 -- Initial setup
 initialize()
 
--- Proper cleanup when game closes (not when player dies)
-game:GetService("UserInputService").WindowFocusReleased:Connect(function()
-    if not LocalPlayer.Character or not LocalPlayer.Character:FindFirstChild("Humanoid") or LocalPlayer.Character.Humanoid.Health <= 0 then
-        return -- Don't remove if player is dead
-    end
-    fovCircle:Remove()
-    if renderSteppedConnection then
-        renderSteppedConnection:Disconnect()
-    end
-    if characterAddedConnection then
-        characterAddedConnection:Disconnect()
-    end
-end)
-
 print("Enhanced Aimbot Active | FOV:", SETTINGS.FOV, "| Physics-Based Prediction Enabled")
