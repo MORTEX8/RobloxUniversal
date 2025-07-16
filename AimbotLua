@@ -1,9 +1,15 @@
--- Enhanced Aimbot with Physics-Based Prediction
+-- Enhanced Aimbot with Physics-Based Prediction and Game-Specific Team Checks
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
 local LocalPlayer = Players.LocalPlayer
 local Camera = workspace.CurrentCamera
+
+-- Game IDs
+local GAME_IDS = {
+    COUNTER_BLOX = 301549746,
+    ARSENAL = 286090429
+}
 
 -- Configuration
 local SETTINGS = {
@@ -20,6 +26,38 @@ local SETTINGS = {
     ProjectileSpeed = 1000, -- Added for physics prediction
     ProjectileDrop = 9.8 -- Added for physics prediction (gravity)
 }
+
+-- Check if current game is Counter Blox or Arsenal
+local function isTeamBasedGame()
+    local gameId = game.PlaceId
+    return gameId == GAME_IDS.COUNTER_BLOX or gameId == GAME_IDS.ARSENAL
+end
+
+-- Check if target is on enemy team (for team-based games)
+local function isEnemy(targetPlayer)
+    if not isTeamBasedGame() then return true end
+    
+    -- Arsenal team check
+    if game.PlaceId == GAME_IDS.ARSENAL then
+        local localTeam = LocalPlayer.Team
+        local targetTeam = targetPlayer.Team
+        return localTeam ~= targetTeam
+    end
+    
+    -- Counter Blox team check
+    if game.PlaceId == GAME_IDS.COUNTER_BLOX then
+        local localChar = LocalPlayer.Character
+        local targetChar = targetPlayer.Character
+        if localChar and targetChar then
+            -- Counter Blox uses different team identification
+            local localTeam = localChar:FindFirstChild("TeamTag")
+            local targetTeam = targetChar:FindFirstChild("TeamTag")
+            return localTeam and targetTeam and localTeam.Value ~= targetTeam.Value
+        end
+    end
+    
+    return true
+end
 
 -- FOV Circle (Now follows mouse)
 local fovCircle = Drawing.new("Circle")
@@ -137,6 +175,11 @@ local function getTarget()
     
     for _, player in ipairs(Players:GetPlayers()) do
         if player ~= LocalPlayer and player.Character then
+            -- Skip if team-based game and not enemy
+            if isTeamBasedGame() and not isEnemy(player) then
+                continue
+            end
+            
             local humanoid = player.Character:FindFirstChildOfClass("Humanoid")
             local head = player.Character:FindFirstChild("Head")
             
@@ -192,4 +235,13 @@ end)
 -- Initial setup
 initialize()
 
-print("Enhanced Aimbot Active | FOV:", SETTINGS.FOV, "| Physics-Based Prediction Enabled")
+-- Print game-specific info
+local gameName = "Unknown"
+if game.PlaceId == GAME_IDS.COUNTER_BLOX then
+    gameName = "Counter Blox"
+elseif game.PlaceId == GAME_IDS.ARSENAL then
+    gameName = "Arsenal"
+end
+
+print(string.format("Enhanced Aimbot Active | Game: %s | FOV: %d | Team Check: %s", 
+    gameName, SETTINGS.FOV, tostring(isTeamBasedGame())))
