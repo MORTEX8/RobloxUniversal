@@ -1,0 +1,92 @@
+-- Place this in a LocalScript inside StarterCharacterScripts
+local player = game:GetService("Players").LocalPlayer
+local character = player.Character or player.CharacterAdded:Wait()
+local humanoid = character:WaitForChild("Humanoid")
+local userInputService = game:GetService("UserInputService")
+local runService = game:GetService("RunService")
+
+-- Configuration
+local SPEED_INCREASE_PER_STUD = 0.03 -- 3% increase per stud moved
+
+-- State variables
+local isBhopping = false
+local baseWalkSpeed = humanoid.WalkSpeed
+local baseJumpPower = humanoid.JumpPower
+local currentSpeedMultiplier = 1.0
+local lastPosition = character:GetPivot().Position
+local distanceMoved = 0
+
+-- Function to make the character jump instantly
+local function jump()
+    if humanoid:GetState() ~= Enum.HumanoidStateType.Freefall and humanoid:GetState() ~= Enum.HumanoidStateType.Jumping then
+        humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
+    end
+end
+
+-- Handle spacebar input
+userInputService.InputBegan:Connect(function(input, gameProcessed)
+    if input.KeyCode == Enum.KeyCode.Space and not gameProcessed then
+        isBhopping = true
+        baseWalkSpeed = humanoid.WalkSpeed
+        baseJumpPower = humanoid.JumpPower
+        lastPosition = character:GetPivot().Position
+        distanceMoved = 0
+        
+        -- Immediate first jump
+        jump()
+    end
+end)
+
+userInputService.InputEnded:Connect(function(input)
+    if input.KeyCode == Enum.KeyCode.Space then
+        isBhopping = false
+        currentSpeedMultiplier = 1.0
+        humanoid.WalkSpeed = baseWalkSpeed
+    end
+end)
+
+-- Track movement distance and apply speed boosts
+runService.Heartbeat:Connect(function(dt)
+    if not isBhopping or not character:FindFirstChild("HumanoidRootPart") then return end
+    
+    -- Calculate distance moved since last frame
+    local currentPosition = character:GetPivot().Position
+    local frameDistance = (currentPosition - lastPosition).Magnitude
+    distanceMoved = distanceMoved + frameDistance
+    lastPosition = currentPosition
+    
+    -- Apply speed boost based on distance moved (3% per stud)
+    if distanceMoved >= 1 then
+        local speedIncreases = math.floor(distanceMoved)
+        distanceMoved = distanceMoved - speedIncreases
+        currentSpeedMultiplier = currentSpeedMultiplier + (SPEED_INCREASE_PER_STUD * speedIncreases)
+        humanoid.WalkSpeed = baseWalkSpeed * currentSpeedMultiplier
+    end
+    
+    -- Auto-jump when touching ground
+    if humanoid:GetState() == Enum.HumanoidStateType.Landed then
+        jump()
+    end
+end)
+
+-- Reset when character respawns
+player.CharacterAdded:Connect(function(newCharacter)
+    character = newCharacter
+    humanoid = character:WaitForChild("Humanoid")
+    isBhopping = false
+    currentSpeedMultiplier = 1.0
+end)
+
+-- Visual speed indicator (optional)
+local speedText = Instance.new("TextLabel")
+speedText.Name = "SpeedIndicator"
+speedText.Text = "Speed: 100%"
+speedText.TextColor3 = Color3.new(1, 1, 1)
+speedText.BackgroundTransparency = 1
+speedText.Size = UDim2.new(0, 200, 0, 50)
+speedText.Position = UDim2.new(0.5, -100, 0, 10)
+speedText.Parent = player:WaitForChild("PlayerGui"):WaitForChild("ScreenGui") or Instance.new("ScreenGui", player:WaitForChild("PlayerGui"))
+
+runService.Heartbeat:Connect(function()
+    speedText.Text = string.format("Speed: %.0f%%", currentSpeedMultiplier * 100)
+end)
