@@ -5,7 +5,7 @@ local Camera = workspace.CurrentCamera
 local UIS = game:GetService("UserInputService")
 
 -- Settings
-local FOV = 120 -- Targeting radius in pixels
+local FOV = 180 -- Targeting radius in pixels
 local HeadDistance = 12 -- Distance in front of you (studs)
 local ActivationKey = Enum.UserInputType.MouseButton1 -- Left click to shoot
 local ShowFOV = true -- Toggle FOV circle
