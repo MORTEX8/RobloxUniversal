@@ -1,6 +1,4 @@
 -- Roblox External Script Loader with UI
--- Creates a UI with buttons that load scripts when clicked
-
 local uiVisible = true
 
 local function createLoaderUI()
@@ -9,17 +7,17 @@ local function createLoaderUI()
     screenGui.Name = "ScriptLoaderUI"
     screenGui.Parent = game:GetService("CoreGui") or game.Players.LocalPlayer:WaitForChild("PlayerGui")
 
-    -- Main frame (enlarged to fit new button)
+    -- Main frame (wider and taller)
     local mainFrame = Instance.new("Frame")
     mainFrame.Name = "MainFrame"
-    mainFrame.Size = UDim2.new(0, 300, 0, 300)
-    mainFrame.Position = UDim2.new(0.5, -150, 0.5, -150)
+    mainFrame.Size = UDim2.new(0, 400, 0, 300)
+    mainFrame.Position = UDim2.new(0.5, -200, 0.5, -150)
     mainFrame.AnchorPoint = Vector2.new(0.5, 0.5)
     mainFrame.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
     mainFrame.BorderSizePixel = 0
     mainFrame.Parent = screenGui
 
-    -- Add outline to main frame
+    -- Outline
     local outline = Instance.new("UIStroke")
     outline.Name = "Outline"
     outline.Color = Color3.fromRGB(171, 128, 214)
@@ -39,7 +37,7 @@ local function createLoaderUI()
     title.TextSize = 18
     title.Parent = mainFrame
 
-    -- Add outline to title
+    -- Title outline
     local titleOutline = Instance.new("UIStroke")
     titleOutline.Name = "TitleOutline"
     titleOutline.Color = Color3.fromRGB(171, 128, 214)
@@ -63,19 +61,70 @@ local function createLoaderUI()
         screenGui:Destroy()
     end)
 
-    -- Button container
-    local buttonContainer = Instance.new("Frame")
-    buttonContainer.Name = "ButtonContainer"
-    buttonContainer.Size = UDim2.new(1, -20, 1, -50)
-    buttonContainer.Position = UDim2.new(0, 10, 0, 40)
-    buttonContainer.BackgroundTransparency = 1
-    buttonContainer.Parent = mainFrame
+    -- Tab buttons
+    local tabButtons = Instance.new("Frame")
+    tabButtons.Name = "TabButtons"
+    tabButtons.Size = UDim2.new(1, 0, 0, 30)
+    tabButtons.Position = UDim2.new(0, 0, 0, 30)
+    tabButtons.BackgroundTransparency = 1
+    tabButtons.Parent = mainFrame
 
-    -- Function to create buttons
-    local function createButton(name, position)
+    local function createTabButton(name, position)
+        local button = Instance.new("TextButton")
+        button.Name = name.."Tab"
+        button.Size = UDim2.new(0.333, 0, 1, 0)
+        button.Position = position
+        button.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+        button.BorderSizePixel = 0
+        button.Text = name
+        button.TextColor3 = Color3.fromRGB(255, 255, 255)
+        button.Font = Enum.Font.Gotham
+        button.TextSize = 14
+        button.Parent = tabButtons
+        return button
+    end
+
+    local combatTab = createTabButton("Combat", UDim2.new(0, 0, 0, 0))
+    local visualsTab = createTabButton("Visuals", UDim2.new(0.333, 0, 0, 0))
+    local movementTab = createTabButton("Movement", UDim2.new(0.666, 0, 0, 0))
+
+    -- Tab content frames
+    local tabContent = Instance.new("Frame")
+    tabContent.Name = "TabContent"
+    tabContent.Size = UDim2.new(1, 0, 1, -60)
+    tabContent.Position = UDim2.new(0, 0, 0, 60)
+    tabContent.BackgroundTransparency = 1
+    tabContent.Parent = mainFrame
+
+    local combatFrame = Instance.new("Frame")
+    combatFrame.Name = "CombatFrame"
+    combatFrame.Size = UDim2.new(1, 0, 1, 0)
+    combatFrame.Position = UDim2.new(0, 0, 0, 0)
+    combatFrame.BackgroundTransparency = 1
+    combatFrame.Visible = true
+    combatFrame.Parent = tabContent
+
+    local visualsFrame = Instance.new("Frame")
+    visualsFrame.Name = "VisualsFrame"
+    visualsFrame.Size = UDim2.new(1, 0, 1, 0)
+    visualsFrame.Position = UDim2.new(0, 0, 0, 0)
+    visualsFrame.BackgroundTransparency = 1
+    visualsFrame.Visible = false
+    visualsFrame.Parent = tabContent
+
+    local movementFrame = Instance.new("Frame")
+    movementFrame.Name = "MovementFrame"
+    movementFrame.Size = UDim2.new(1, 0, 1, 0)
+    movementFrame.Position = UDim2.new(0, 0, 0, 0)
+    movementFrame.BackgroundTransparency = 1
+    movementFrame.Visible = false
+    movementFrame.Parent = tabContent
+
+    -- Function to create feature buttons
+    local function createFeatureButton(name, parentFrame, position)
         local button = Instance.new("TextButton")
         button.Name = name.."Button"
-        button.Size = UDim2.new(1, 0, 0, 40)
+        button.Size = UDim2.new(1, -20, 0, 40)
         button.Position = position
         button.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
         button.BorderSizePixel = 0
@@ -83,16 +132,14 @@ local function createLoaderUI()
         button.TextColor3 = Color3.fromRGB(255, 255, 255)
         button.Font = Enum.Font.Gotham
         button.TextSize = 16
-        button.Parent = buttonContainer
+        button.Parent = parentFrame
         
-        -- Add outline to button
         local buttonOutline = Instance.new("UIStroke")
         buttonOutline.Name = "ButtonOutline"
         buttonOutline.Color = Color3.fromRGB(80, 80, 80)
         buttonOutline.Thickness = 1
         buttonOutline.Parent = button
         
-        -- Hover effects
         button.MouseEnter:Connect(function()
             button.BackgroundColor3 = Color3.fromRGB(80, 80, 80)
             buttonOutline.Color = Color3.fromRGB(100, 100, 100)
@@ -106,12 +153,45 @@ local function createLoaderUI()
         return button
     end
 
-    -- Create all buttons
-    local aimbotButton = createButton("Aimbot", UDim2.new(0, 0, 0, 0))
-    local visualsButton = createButton("Visuals", UDim2.new(0, 0, 0, 50))
-    local hitboxesButton = createButton("Hitboxes", UDim2.new(0, 0, 0, 100))
-    local silentAimButton = createButton("SilentAim(WIP)", UDim2.new(0, 0, 0, 150))
-    local skeletonEspButton = createButton("SkeletonEsp", UDim2.new(0, 0, 0, 200))
+    -- Combat tab buttons
+    local aimbotButton = createFeatureButton("Aimbot", combatFrame, UDim2.new(0, 10, 0, 10))
+    local hitboxesButton = createFeatureButton("Hitboxes", combatFrame, UDim2.new(0, 10, 0, 60))
+    local silentAimButton = createFeatureButton("SilentAim(WIP)", combatFrame, UDim2.new(0, 10, 0, 110))
+
+    -- Visuals tab buttons
+    local visualsButton = createFeatureButton("Visuals", visualsFrame, UDim2.new(0, 10, 0, 10))
+    local skeletonEspButton = createFeatureButton("SkeletonEsp", visualsFrame, UDim2.new(0, 10, 0, 60))
+
+    -- Tab switching logic
+    combatTab.MouseButton1Click:Connect(function()
+        combatFrame.Visible = true
+        visualsFrame.Visible = false
+        movementFrame.Visible = false
+        combatTab.BackgroundColor3 = Color3.fromRGB(70, 70, 70)
+        visualsTab.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+        movementTab.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+    end)
+
+    visualsTab.MouseButton1Click:Connect(function()
+        combatFrame.Visible = false
+        visualsFrame.Visible = true
+        movementFrame.Visible = false
+        combatTab.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+        visualsTab.BackgroundColor3 = Color3.fromRGB(70, 70, 70)
+        movementTab.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+    end)
+
+    movementTab.MouseButton1Click:Connect(function()
+        combatFrame.Visible = false
+        visualsFrame.Visible = false
+        movementFrame.Visible = true
+        combatTab.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+        visualsTab.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+        movementTab.BackgroundColor3 = Color3.fromRGB(70, 70, 70)
+    end)
+
+    -- Initialize with Combat tab selected
+    combatTab.BackgroundColor3 = Color3.fromRGB(70, 70, 70)
 
     -- Function to fetch and execute a script
     local function fetchAndExecute(url, scriptName, button)
@@ -130,7 +210,6 @@ local function createLoaderUI()
                 button.BackgroundColor3 = Color3.fromRGB(171, 128, 214)
                 button.Text = scriptName.." loaded!"
                 
-                -- Reset button after 2 seconds
                 delay(2, function()
                     button.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
                     button.Text = scriptName
@@ -139,7 +218,6 @@ local function createLoaderUI()
                 warn("Failed to execute "..scriptName..": "..tostring(errorMsg))
                 button.Text = "Error loading "..scriptName
                 
-                -- Reset button after 2 seconds
                 delay(2, function()
                     button.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
                     button.Text = scriptName
@@ -149,7 +227,6 @@ local function createLoaderUI()
             warn("Failed to fetch "..scriptName..": "..tostring(response))
             button.Text = "Error fetching "..scriptName
             
-            -- Reset button after 2 seconds
             delay(2, function()
                 button.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
                 button.Text = scriptName
@@ -162,10 +239,6 @@ local function createLoaderUI()
         fetchAndExecute("https://raw.githubusercontent.com/MORTEX8/RobloxUniversal/refs/heads/main/AimbotLua", "Aimbot", aimbotButton)
     end)
 
-    visualsButton.MouseButton1Click:Connect(function()
-        fetchAndExecute("https://raw.githubusercontent.com/MORTEX8/RobloxUniversal/refs/heads/main/VisualsLua", "Visuals", visualsButton)
-    end)
-
     hitboxesButton.MouseButton1Click:Connect(function()
         fetchAndExecute("https://raw.githubusercontent.com/MORTEX8/RobloxUniversal/refs/heads/main/Hitboxes", "Hitboxes", hitboxesButton)
     end)
@@ -174,42 +247,15 @@ local function createLoaderUI()
         fetchAndExecute("https://raw.githubusercontent.com/MORTEX8/RobloxUniversal/refs/heads/main/SilentAimExp", "SilentAim", silentAimButton)
     end)
 
+    visualsButton.MouseButton1Click:Connect(function()
+        fetchAndExecute("https://raw.githubusercontent.com/MORTEX8/RobloxUniversal/refs/heads/main/VisualsLua", "Visuals", visualsButton)
+    end)
+
     skeletonEspButton.MouseButton1Click:Connect(function()
         fetchAndExecute("https://raw.githubusercontent.com/MORTEX8/RobloxUniversal/refs/heads/main/SkeletonESP", "SkeletonEsp", skeletonEspButton)
     end)
 
-    -- Make the UI draggable
-    local dragging = false
-    local dragInput, dragStart, startPos
-
-    title.InputBegan:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseButton1 then
-            dragging = true
-            dragStart = input.Position
-            startPos = mainFrame.Position
-            
-            input.Changed:Connect(function()
-                if input.UserInputState == Enum.UserInputState.End then
-                    dragging = false
-                end
-            end)
-        end
-    end)
-
-    title.InputChanged:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseMovement then
-            dragInput = input
-        end
-    end)
-
-    game:GetService("UserInputService").InputChanged:Connect(function(input)
-        if input == dragInput and dragging then
-            local delta = input.Position - dragStart
-            mainFrame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
-        end
-    end)
-
-    -- Toggle UI with Insert key (FIXED THIS PART)
+    -- Toggle UI with Insert key
     game:GetService("UserInputService").InputBegan:Connect(function(input, gameProcessed)
         if not gameProcessed and input.KeyCode == Enum.KeyCode.Insert then
             uiVisible = not uiVisible
