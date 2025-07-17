@@ -7,7 +7,7 @@ local function createLoaderUI()
     screenGui.Name = "ScriptLoaderUI"
     screenGui.Parent = game:GetService("CoreGui") or game.Players.LocalPlayer:WaitForChild("PlayerGui")
 
-    -- Main frame (wider and taller)
+    -- Main frame
     local mainFrame = Instance.new("Frame")
     mainFrame.Name = "MainFrame"
     mainFrame.Size = UDim2.new(0, 400, 0, 300)
@@ -162,6 +162,9 @@ local function createLoaderUI()
     local visualsButton = createFeatureButton("Visuals", visualsFrame, UDim2.new(0, 10, 0, 10))
     local skeletonEspButton = createFeatureButton("SkeletonEsp", visualsFrame, UDim2.new(0, 10, 0, 60))
 
+    -- Movement tab buttons
+    local bhopButton = createFeatureButton("Bhop", movementFrame, UDim2.new(0, 10, 0, 10))
+
     -- Tab switching logic
     combatTab.MouseButton1Click:Connect(function()
         combatFrame.Visible = true
@@ -193,66 +196,42 @@ local function createLoaderUI()
     -- Initialize with Combat tab selected
     combatTab.BackgroundColor3 = Color3.fromRGB(70, 70, 70)
 
-    -- Function to fetch and execute a script
-    local function fetchAndExecute(url, scriptName, button)
-        button.Text = "Loading..."
-        
+    -- Simplified script loading function
+    local function loadScript(url)
         local success, response = pcall(function()
             return game:HttpGetAsync(url, true)
         end)
         
         if success and response then
-            local executeSuccess, errorMsg = pcall(function()
+            pcall(function()
                 loadstring(response)()
-            end)
-            
-            if executeSuccess then
-                button.BackgroundColor3 = Color3.fromRGB(171, 128, 214)
-                button.Text = scriptName.." loaded!"
-                
-                delay(2, function()
-                    button.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
-                    button.Text = scriptName
-                end)
-            else
-                warn("Failed to execute "..scriptName..": "..tostring(errorMsg))
-                button.Text = "Error loading "..scriptName
-                
-                delay(2, function()
-                    button.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
-                    button.Text = scriptName
-                end)
-            end
-        else
-            warn("Failed to fetch "..scriptName..": "..tostring(response))
-            button.Text = "Error fetching "..scriptName
-            
-            delay(2, function()
-                button.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
-                button.Text = scriptName
             end)
         end
     end
 
-    -- Button click handlers
+    -- Button click handlers (simplified)
     aimbotButton.MouseButton1Click:Connect(function()
-        fetchAndExecute("https://raw.githubusercontent.com/MORTEX8/RobloxUniversal/refs/heads/main/AimbotLua", "Aimbot", aimbotButton)
+        loadScript("https://raw.githubusercontent.com/MORTEX8/RobloxUniversal/refs/heads/main/AimbotLua")
     end)
 
     hitboxesButton.MouseButton1Click:Connect(function()
-        fetchAndExecute("https://raw.githubusercontent.com/MORTEX8/RobloxUniversal/refs/heads/main/Hitboxes", "Hitboxes", hitboxesButton)
+        loadScript("https://raw.githubusercontent.com/MORTEX8/RobloxUniversal/refs/heads/main/Hitboxes")
     end)
 
     silentAimButton.MouseButton1Click:Connect(function()
-        fetchAndExecute("https://raw.githubusercontent.com/MORTEX8/RobloxUniversal/refs/heads/main/SilentAimExp", "SilentAim", silentAimButton)
+        loadScript("https://raw.githubusercontent.com/MORTEX8/RobloxUniversal/refs/heads/main/SilentAimExp")
     end)
 
     visualsButton.MouseButton1Click:Connect(function()
-        fetchAndExecute("https://raw.githubusercontent.com/MORTEX8/RobloxUniversal/refs/heads/main/VisualsLua", "Visuals", visualsButton)
+        loadScript("https://raw.githubusercontent.com/MORTEX8/RobloxUniversal/refs/heads/main/VisualsLua")
     end)
 
     skeletonEspButton.MouseButton1Click:Connect(function()
-        fetchAndExecute("https://raw.githubusercontent.com/MORTEX8/RobloxUniversal/refs/heads/main/SkeletonESP", "SkeletonEsp", skeletonEspButton)
+        loadScript("https://raw.githubusercontent.com/MORTEX8/RobloxUniversal/refs/heads/main/SkeletonESP")
+    end)
+
+    bhopButton.MouseButton1Click:Connect(function()
+        loadScript("https://raw.githubusercontent.com/MORTEX8/RobloxUniversal/refs/heads/main/Bhop")
     end)
 
     -- Toggle UI with Insert key
