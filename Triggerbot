@@ -1,0 +1,52 @@
+-- Enhanced Trigger Bot Script with Delays
+local Player = game:GetService("Players").LocalPlayer
+local Mouse = Player:GetMouse()
+local UserInputService = game:GetService("UserInputService")
+
+-- CONFIGURATION SETTINGS --
+local TRIGGER_DELAY_MS = 30  -- Delay after hovering humanoid before shooting (milliseconds)
+local CLICK_DELAY_MS = 300    -- Delay between shots (milliseconds)
+------------------------------
+
+local function isHumanoidValid(target)
+    -- Check if the target is a valid humanoid
+    if target and target:IsA("Model") then
+        local humanoid = target:FindFirstChildOfClass("Humanoid")
+        if humanoid and humanoid.Health > 0 then
+            return true
+        end
+    end
+    return false
+end
+
+local lastClickTime = 0
+
+UserInputService.InputBegan:Connect(function(input, gameProcessed)
+    if input.UserInputType == Enum.UserInputType.MouseButton2 then
+        -- Right mouse button pressed
+        while UserInputService:IsMouseButtonPressed(Enum.UserInputType.MouseButton2) do
+            local target = Mouse.Target
+            if target and isHumanoidValid(target.Parent) then
+                -- Wait the trigger delay before shooting
+                wait(TRIGGER_DELAY_MS / 1000)
+                
+                -- Check if enough time has passed since last click
+                if (tick() - lastClickTime) * 1000 >= CLICK_DELAY_MS then
+                    mouse1click()
+                    lastClickTime = tick()
+                end
+            end
+            wait() -- Prevent infinite loops without yielding
+        end
+    end
+end)
+
+-- Function to simulate left click
+function mouse1click()
+    local vim = game:GetService("VirtualInputManager")
+    vim:SendMouseButtonEvent(Mouse.X, Mouse.Y, 0, true, game, 1)
+    wait(0.05) -- Very short press duration
+    vim:SendMouseButtonEvent(Mouse.X, Mouse.Y, 0, false, game, 1)
+end
+
+print(string.format("Trigger bot activated! Settings: Trigger Delay = %dms, Click Delay = %dms", TRIGGER_DELAY_MS, CLICK_DELAY_MS))
