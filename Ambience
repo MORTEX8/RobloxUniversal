@@ -1,0 +1,35 @@
+-- This script changes the ambient color of the game's lighting to a deep red,
+-- which affects the overall skybox appearance and lighting.
+
+-- Get a reference to the Lighting service in the game.
+-- The Lighting service controls various environmental properties, including ambient light.
+local Lighting = game:GetService("Lighting")
+
+-- Define the desired *much deeper* red color using RGB values.
+-- Color3.fromRGB(R, G, B) creates a new Color3 object.
+-- R, G, B values range from 0 to 255.
+-- We've lowered the red component significantly to make it darker and more intense.
+local deepRed = Color3.fromRGB(171, 128, 214) -- This is a very dark, intense red.
+
+-- Set the Ambient property of the Lighting service to the deep red color.
+-- The Ambient property controls the color of the ambient light in the scene,
+-- which significantly influences the skybox and overall environment's tint.
+Lighting.Ambient = deepRed
+
+-- We are also setting the OutdoorAmbient property for a much more pronounced effect
+-- on outdoor areas and the skybox itself, making the deep red more dominant.
+Lighting.OutdoorAmbient = deepRed
+
+-- To make the sky itself the same deep red color, we'll set ColorShift_Top and ColorShift_Bottom.
+-- These properties directly control the color of the sky, blending from top to bottom.
+-- Setting both to the same deep red will make the entire sky uniformly that color.
+Lighting.ColorShift_Top = deepRed
+Lighting.ColorShift_Bottom = deepRed
+
+-- Optional: You might also want to adjust the Brightness or other properties
+-- of the Lighting service to fine-tune the visual effect.
+-- For example, to make the entire scene darker to emphasize the deep red:
+-- Lighting.Brightness = 0.5 -- Adjust as needed (default is 2)
+
+-- Print a message to the output window to confirm the script has run.
+print("Skybox color and sky now changed to a much deeper red!")
