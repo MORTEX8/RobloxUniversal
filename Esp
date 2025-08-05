@@ -1,0 +1,360 @@
+--!strict
+
+-- Services
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+
+-- Configuration
+local NAMETAG_HEIGHT_PIXELS = 20
+local DISTANCE_LABEL_HEIGHT_PIXELS = 15
+local HEALTH_BAR_MAX_PIXEL_WIDTH = 4
+local HEALTH_BAR_RELATIVE_FACTOR = 0.05
+local HEALTH_BAR_MIN_PIXEL_WIDTH_FOR_VISIBILITY = 1
+local HEALTH_BAR_OFFSET_X = 5
+local UPDATE_INTERVAL = 5
+
+-- Health colors
+local HEALTH_COLOR_HIGH = Color3.fromRGB(0, 255, 0)
+local HEALTH_COLOR_MEDIUM = Color3.fromRGB(255, 165, 0)
+local HEALTH_COLOR_LOW = Color3.fromRGB(255, 0, 0)
+local HEALTH_THRESHOLD_MEDIUM = 0.6
+local HEALTH_THRESHOLD_LOW = 0.3
+
+local activeNametags = {}
+local camera = workspace.CurrentCamera
+local localPlayer = Players.LocalPlayer
+
+-- Health bar update (unchanged)
+local function updateHealthBar(humanoid, healthBarFill)
+    if not humanoid or not healthBarFill then return end
+
+    local healthPercentage = humanoid.Health / humanoid.MaxHealth
+    healthBarFill.Size = UDim2.new(1, 0, healthPercentage, 0)
+    healthBarFill.Position = UDim2.new(0, 0, 1 - healthPercentage, 0)
+
+    if healthPercentage > HEALTH_THRESHOLD_MEDIUM then
+        healthBarFill.BackgroundColor3 = HEALTH_COLOR_HIGH
+    elseif healthPercentage > HEALTH_THRESHOLD_LOW then
+        healthBarFill.BackgroundColor3 = HEALTH_COLOR_MEDIUM
+    else
+        healthBarFill.BackgroundColor3 = HEALTH_COLOR_LOW
+    end
+end
+
+-- Modified to ignore head size while keeping everything else original
+local function getCharacterCorners(character)
+    local torso = character:FindFirstChild("Torso") or character:FindFirstChild("UpperTorso")
+    local rootPart = character:FindFirstChild("HumanoidRootPart")
+    if not torso or not rootPart then return {} end
+
+    -- Estimate character size without head
+    local width = torso.Size.X * 1.5
+    local height = torso.Size.Y * 3.5 -- Standard Roblox character height
+    local depth = torso.Size.Z * 1.5
+
+    -- Calculate corners relative to root part
+    local corners = {
+        rootPart.CFrame * CFrame.new(width, height, depth),
+        rootPart.CFrame * CFrame.new(width, height, -depth),
+        rootPart.CFrame * CFrame.new(width, -height/2, depth), -- Lower body
+        rootPart.CFrame * CFrame.new(width, -height/2, -depth),
+        rootPart.CFrame * CFrame.new(-width, height, depth),
+        rootPart.CFrame * CFrame.new(-width, height, -depth),
+        rootPart.CFrame * CFrame.new(-width, -height/2, depth),
+        rootPart.CFrame * CFrame.new(-width, -height/2, -depth)
+    }
+    
+    return corners
+end
+
+-- Only modified the bounding box calculation part
+local function updateNametagAndBox(player)
+    local character = player.Character
+    local guiAndHighlight = activeNametags[player]
+
+    if not character or not guiAndHighlight or not guiAndHighlight.BillboardGui or not guiAndHighlight.Highlight or not camera then return end
+
+    local nametagGui = guiAndHighlight.BillboardGui
+    local playerHighlight = guiAndHighlight.Highlight
+    local humanoid = character:FindFirstChildOfClass("Humanoid")
+    local humanoidRootPart = character:FindFirstChild("HumanoidRootPart")
+
+    if not humanoidRootPart or not humanoid then
+        nametagGui.Enabled = false
+        playerHighlight.Enabled = false
+        return
+    end
+
+    -- Get corners ignoring head size
+    local corners = getCharacterCorners(character)
+    if #corners == 0 then
+        nametagGui.Enabled = false
+        playerHighlight.Enabled = false
+        return
+    end
+
+    -- Original screen projection logic
+    local minX, maxX = math.huge, -math.huge
+    local minY, maxY = math.huge, -math.huge
+    local anyCornerOnScreen = false
+
+    for _, corner in ipairs(corners) do
+        local screenPoint, onScreen = camera:WorldToScreenPoint(corner.Position)
+        if onScreen then
+            anyCornerOnScreen = true
+            minX = math.min(minX, screenPoint.X)
+            maxX = math.max(maxX, screenPoint.X)
+            minY = math.min(minY, screenPoint.Y)
+            maxY = math.max(maxY, screenPoint.Y)
+        end
+    end
+
+    if not anyCornerOnScreen then
+        nametagGui.Enabled = false
+        playerHighlight.Enabled = false
+        return
+    else
+        nametagGui.Enabled = true
+        playerHighlight.Enabled = true
+    end
+
+    -- Rest is completely original
+    local boxPixelWidth = maxX - minX
+    local boxPixelHeight = maxY - minY
+
+    local healthBarWidth = math.clamp(
+        boxPixelWidth * HEALTH_BAR_RELATIVE_FACTOR,
+        HEALTH_BAR_MIN_PIXEL_WIDTH_FOR_VISIBILITY,
+        HEALTH_BAR_MAX_PIXEL_WIDTH
+    )
+
+    local totalGuiWidth = healthBarWidth + HEALTH_BAR_OFFSET_X + boxPixelWidth
+    local totalGuiHeight = NAMETAG_HEIGHT_PIXELS + boxPixelHeight + DISTANCE_LABEL_HEIGHT_PIXELS
+
+    nametagGui.Size = UDim2.new(0, totalGuiWidth, 0, totalGuiHeight)
+    nametagGui.StudsOffset = humanoidRootPart.CFrame.Position - humanoidRootPart.CFrame.Position
+
+    -- Original GUI element updates
+    local nameLabel = nametagGui:FindFirstChild("NameLabel")
+    local boxFrame = nametagGui:FindFirstChild("PlayerBox")
+    local distanceLabel = nametagGui:FindFirstChild("DistanceLabel")
+    local healthBarContainer = nametagGui:FindFirstChild("HealthBarContainer")
+    local healthBarFill = healthBarContainer and healthBarContainer:FindFirstChild("HealthBarFill")
+
+    if nameLabel then
+        nameLabel.Position = UDim2.new(0, healthBarWidth + HEALTH_BAR_OFFSET_X, 0, 0)
+        nameLabel.Size = UDim2.new(0, boxPixelWidth, 0, NAMETAG_HEIGHT_PIXELS)
+        nameLabel.Text = player.DisplayName or player.Name
+    end
+
+    if boxFrame then
+        boxFrame.Position = UDim2.new(0, healthBarWidth + HEALTH_BAR_OFFSET_X, 0, NAMETAG_HEIGHT_PIXELS)
+        boxFrame.Size = UDim2.new(0, boxPixelWidth, 0, boxPixelHeight)
+    end
+
+    if distanceLabel and localPlayer.Character and localPlayer.Character:FindFirstChild("HumanoidRootPart") then
+        local distance = math.floor((localPlayer.Character.HumanoidRootPart.Position - humanoidRootPart.Position).Magnitude + 0.5)
+        distanceLabel.Text = distance .. "m"
+        distanceLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+        distanceLabel.Position = UDim2.new(0, healthBarWidth + HEALTH_BAR_OFFSET_X, 0, NAMETAG_HEIGHT_PIXELS + boxPixelHeight)
+        distanceLabel.Size = UDim2.new(0, boxPixelWidth, 0, DISTANCE_LABEL_HEIGHT_PIXELS)
+    end
+
+    if healthBarContainer and healthBarFill then
+        healthBarContainer.Position = UDim2.new(0, 0, 0, NAMETAG_HEIGHT_PIXELS)
+        healthBarContainer.Size = UDim2.new(0, healthBarWidth, 0, boxPixelHeight)
+        updateHealthBar(humanoid, healthBarFill)
+    end
+end
+
+-- Everything below this point is completely original ---------------------------
+
+local function createNametag(player)
+    local character = player.Character
+    if not character then return end
+
+    local humanoidRootPart = character:FindFirstChild("HumanoidRootPart")
+    local humanoid = character:FindFirstChildOfClass("Humanoid")
+    if not humanoidRootPart or not humanoid then return end
+
+    if activeNametags[player] and activeNametags[player].BillboardGui and activeNametags[player].BillboardGui.Parent then
+        return
+    end
+
+    local billboardGui = Instance.new("BillboardGui")
+    billboardGui.Name = "PlayerESP"
+    billboardGui.Adornee = humanoidRootPart
+    billboardGui.AlwaysOnTop = true
+    billboardGui.LightInfluence = 0
+    billboardGui.Size = UDim2.new(0, 100, 0, 100)
+    billboardGui.Parent = character
+
+    local nameLabel = Instance.new("TextLabel")
+    nameLabel.Name = "NameLabel"
+    nameLabel.Font = Enum.Font.GothamBold
+    nameLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+    nameLabel.TextStrokeColor3 = Color3.fromRGB(0, 0, 0)
+    nameLabel.TextStrokeTransparency = 0.8
+    nameLabel.TextScaled = true
+    nameLabel.BackgroundTransparency = 1
+    nameLabel.TextXAlignment = Enum.TextXAlignment.Center
+    nameLabel.TextYAlignment = Enum.TextYAlignment.Center
+    nameLabel.Parent = billboardGui
+
+    local boxFrame = Instance.new("Frame")
+    boxFrame.Name = "PlayerBox"
+    boxFrame.BackgroundTransparency = 0.7
+    boxFrame.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+    boxFrame.BorderSizePixel = 2
+    boxFrame.BorderColor3 = Color3.fromRGB(255, 255, 255)
+    boxFrame.Parent = billboardGui
+
+    local distanceLabel = Instance.new("TextLabel")
+    distanceLabel.Name = "DistanceLabel"
+    distanceLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+    distanceLabel.TextStrokeColor3 = Color3.fromRGB(0, 0, 0)
+    distanceLabel.TextStrokeTransparency = 0.8
+    distanceLabel.TextScaled = true
+    distanceLabel.BackgroundTransparency = 1
+    distanceLabel.TextXAlignment = Enum.TextXAlignment.Center
+    distanceLabel.TextYAlignment = Enum.TextYAlignment.Center
+    distanceLabel.Parent = billboardGui
+
+    local healthBarContainer = Instance.new("Frame")
+    healthBarContainer.Name = "HealthBarContainer"
+    healthBarContainer.BackgroundTransparency = 0.7
+    healthBarContainer.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+    healthBarContainer.BorderSizePixel = 1
+    healthBarContainer.BorderColor3 = Color3.fromRGB(255, 255, 255)
+    healthBarContainer.Parent = billboardGui
+
+    local healthBarFill = Instance.new("Frame")
+    healthBarFill.Name = "HealthBarFill"
+    healthBarFill.BackgroundTransparency = 0
+    healthBarFill.BorderSizePixel = 0
+    healthBarFill.Parent = healthBarContainer
+
+    local playerHighlight = Instance.new("Highlight")
+    playerHighlight.Name = "PlayerHighlight"
+    playerHighlight.Adornee = character
+    playerHighlight.FillColor = Color3.fromRGB(255, 0, 0)
+    playerHighlight.OutlineColor = Color3.fromRGB(255, 0, 0)
+    playerHighlight.FillTransparency = 0.5
+    playerHighlight.OutlineTransparency = 0
+    playerHighlight.DepthMode = Enum.HighlightDepthMode.Occluded
+    playerHighlight.Enabled = true
+    playerHighlight.Parent = character
+
+    activeNametags[player] = {
+        BillboardGui = billboardGui,
+        Highlight = playerHighlight,
+        Humanoid = humanoid,
+        HealthBarFill = healthBarFill
+    }
+
+    humanoid.HealthChanged:Connect(function()
+        updateHealthBar(humanoid, healthBarFill)
+    end)
+
+    updateNametagAndBox(player)
+end
+
+local function removeNametag(player)
+    local guiAndHighlight = activeNametags[player]
+    if guiAndHighlight then
+        if guiAndHighlight.BillboardGui and guiAndHighlight.BillboardGui.Parent then
+            guiAndHighlight.BillboardGui:Destroy()
+        end
+        if guiAndHighlight.Highlight and guiAndHighlight.Highlight.Parent then
+            guiAndHighlight.Highlight:Destroy()
+        end
+        activeNametags[player] = nil
+    end
+end
+
+local function onCharacterAdded(player, character)
+    task.wait(0.1)
+    createNametag(player)
+end
+
+-- Player connections
+Players.PlayerAdded:Connect(function(player)
+    if player == localPlayer then return end
+
+    player.CharacterAdded:Connect(function(character)
+        onCharacterAdded(player, character)
+    end)
+
+    if player.Character then
+        onCharacterAdded(player, player.Character)
+    end
+end)
+
+Players.PlayerRemoving:Connect(function(player)
+    removeNametag(player)
+end)
+
+-- Initial setup
+for _, player in ipairs(Players:GetPlayers()) do
+    if player == localPlayer then continue end
+
+    player.CharacterAdded:Connect(function(character)
+        onCharacterAdded(player, character)
+    end)
+
+    if player.Character then
+        onCharacterAdded(player, player.Character)
+    end
+end
+
+-- Camera setup
+if not camera then
+    workspace:GetPropertyChangedSignal("CurrentCamera"):Connect(function()
+        camera = workspace.CurrentCamera
+    end)
+end
+
+-- Main update loop
+RunService.RenderStepped:Connect(function()
+    for player, guiAndHighlight in pairs(activeNametags) do
+        updateNametagAndBox(player)
+    end
+end)
+
+-- Periodic cleanup
+local lastPeriodicCheckTime = 0
+RunService.Heartbeat:Connect(function(deltaTime)
+    lastPeriodicCheckTime = lastPeriodicCheckTime + deltaTime
+    if lastPeriodicCheckTime >= UPDATE_INTERVAL then
+        lastPeriodicCheckTime = 0
+
+        local currentPlayers = Players:GetPlayers()
+        local playersInGame = {}
+
+        for _, player in ipairs(currentPlayers) do
+            playersInGame[player] = true
+        end
+
+        for _, player in ipairs(currentPlayers) do
+            if player == localPlayer then continue end
+
+            local guiAndHighlight = activeNametags[player]
+            local character = player.Character
+            local humanoidRootPart = character and character:FindFirstChild("HumanoidRootPart")
+            local humanoid = character and character:FindFirstChildOfClass("Humanoid")
+
+            if not guiAndHighlight or not guiAndHighlight.BillboardGui or not guiAndHighlight.BillboardGui.Parent or
+               not guiAndHighlight.Highlight or not guiAndHighlight.Highlight.Parent or
+               guiAndHighlight.BillboardGui.Adornee ~= humanoidRootPart or not humanoid then
+                removeNametag(player)
+                createNametag(player)
+            end
+        end
+
+        for player, guiAndHighlight in pairs(activeNametags) do
+            if not playersInGame[player] then
+                removeNametag(player)
+            end
+        end
+    end
+end)
