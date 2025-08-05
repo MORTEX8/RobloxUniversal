@@ -1,0 +1,58 @@
+-- Improved Long Neck Toggle Script (Client-Sided)
+-- Toggle with Y key
+
+local Player = game:GetService("Players").LocalPlayer
+local Character = Player.Character or Player.CharacterAdded:Wait()
+local Humanoid = Character:WaitForChild("Humanoid")
+
+-- Store original values
+local originalCameraOffset = Humanoid.CameraOffset
+local originalCameraSubject = workspace.CurrentCamera.CameraSubject
+local originalCameraType = workspace.CurrentCamera.CameraType
+
+local longNeckOffset = Vector3.new(0, 4, 0) -- 4 studs higher
+local isLongNeck = false
+
+-- Function to toggle neck length
+local function toggleNeckLength()
+    if not Character or not Character:FindFirstChild("Humanoid") then return end
+    
+    isLongNeck = not isLongNeck
+    
+    if isLongNeck then
+        Humanoid.CameraOffset = longNeckOffset
+    else
+        -- Reset to original values to fix viewmodel
+        Humanoid.CameraOffset = originalCameraOffset
+        workspace.CurrentCamera.CameraSubject = originalCameraSubject
+        workspace.CurrentCamera.CameraType = originalCameraType
+    end
+end
+
+-- Set up keybind
+local UIS = game:GetService("UserInputService")
+UIS.InputBegan:Connect(function(input, gameProcessed)
+    if input.KeyCode == Enum.KeyCode.Y and not gameProcessed then
+        toggleNeckLength()
+    end
+end)
+
+-- Handle character respawns
+Player.CharacterAdded:Connect(function(newChar)
+    Character = newChar
+    Humanoid = Character:WaitForChild("Humanoid")
+    
+    -- Update original values with new character's defaults
+    originalCameraOffset = Humanoid.CameraOffset
+    originalCameraSubject = workspace.CurrentCamera.CameraSubject
+    originalCameraType = workspace.CurrentCamera.CameraType
+    
+    -- Reset to default when character respawns
+    isLongNeck = false
+    Humanoid.CameraOffset = originalCameraOffset
+end)
+
+-- Initialize with current values
+originalCameraOffset = Humanoid.CameraOffset
+originalCameraSubject = workspace.CurrentCamera.CameraSubject
+originalCameraType = workspace.CurrentCamera.CameraType
