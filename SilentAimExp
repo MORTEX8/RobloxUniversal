@@ -1,143 +1,172 @@
+-- Silent Aim Script with FOV Circle (Fixed Issues)
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
 local LocalPlayer = Players.LocalPlayer
 local Camera = workspace.CurrentCamera
-local UIS = game:GetService("UserInputService")
 
--- Settings
-local FOV = 180 -- Targeting radius in pixels
-local HeadDistance = 12 -- Distance in front of you (studs)
-local ActivationKey = Enum.UserInputType.MouseButton1 -- Left click to shoot
-local ShowFOV = true -- Toggle FOV circle
-local BulletTravelTime = 0.1 -- Seconds to simulate bullet travel time
-
--- Create FOV circle
+-- FOV Circle Drawing (Fixed to always be circular)
 local circle = Drawing.new("Circle")
-circle.Visible = ShowFOV
-circle.Radius = FOV
-circle.Color = Color3.fromRGB(255, 50, 50)
-circle.Thickness = 2
-circle.Transparency = 0.7
+circle.Visible = true
+circle.Thickness = 1
+circle.Color = Color3.fromRGB(255, 255, 255)
+circle.Transparency = 1
 circle.Filled = false
+circle.NumSides = 64 -- Ensures smooth circle
 
--- Track active teleportations
-local activeTeleports = {}
+-- Original Hitbox Expansion Code (Unchanged)
+function GetPlayers()
+    for _, v in pairs(game:GetChildren()) do
+        if v.ClassName == "Players" then
+            return v
+        end
+    end
+end
 
--- Find closest target
-local function getTarget()
-    local closest = nil
-    local closestDist = FOV
-    local mousePos = UIS:GetMouseLocation()
+local players = GetPlayers()
+local plr = players.LocalPlayer
+
+-- Your original hitbox expansion coroutine (Unchanged)
+coroutine.wrap(function()
+    while wait(1) do
+        for _, v in pairs(players:GetPlayers()) do
+            if v.Name ~= plr.Name and v.Character then
+                -- Right Leg
+                if v.Character:FindFirstChild("RightUpperLeg") then
+                    v.Character.RightUpperLeg.CanCollide = false
+                    v.Character.RightUpperLeg.Transparency = 10
+                    v.Character.RightUpperLeg.Size = Vector3.new(13, 13, 13)
+                end
+                
+                -- Left Leg
+                if v.Character:FindFirstChild("LeftUpperLeg") then
+                    v.Character.LeftUpperLeg.CanCollide = false
+                    v.Character.LeftUpperLeg.Transparency = 10
+                    v.Character.LeftUpperLeg.Size = Vector3.new(13, 13, 13)
+                end
+                
+                -- Head
+                if v.Character:FindFirstChild("HeadHB") then
+                    v.Character.HeadHB.CanCollide = false
+                    v.Character.HeadHB.Transparency = 10
+                    v.Character.HeadHB.Size = Vector3.new(13, 13, 13)
+                end
+                
+                -- HumanoidRootPart
+                if v.Character:FindFirstChild("HumanoidRootPart") then
+                    v.Character.HumanoidRootPart.CanCollide = false
+                    v.Character.HumanoidRootPart.Transparency = 10
+                    v.Character.HumanoidRootPart.Size = Vector3.new(13, 13, 13)
+                end
+            end
+        end
+    end
+end)()
+
+-- FOV Circle Updater (Fixed to persist when tabbed out)
+local function updateFOV()
+    -- Get mouse position
+    local success, mousePos = pcall(function()
+        return UserInputService:GetMouseLocation()
+    end)
     
-    for _, player in pairs(Players:GetPlayers()) do
-        if player ~= LocalPlayer and player.Character then
-            local humanoid = player.Character:FindFirstChildOfClass("Humanoid")
-            local head = player.Character:FindFirstChild("Head")
+    if not success then
+        circle.Visible = false
+        return
+    end
+    
+    circle.Position = mousePos
+    
+    -- Find closest player to crosshair
+    local closestPlayer = nil
+    local closestDistance = math.huge
+    
+    for _, player in pairs(players:GetPlayers()) do
+        if player ~= plr and player.Character and player.Character:FindFirstChild("Head") then
+            local head = player.Character.Head
+            local headPos, onScreen = Camera:WorldToViewportPoint(head.Position)
             
-            if head and humanoid and humanoid.Health > 0 and not activeTeleports[head] then
-                local screenPos = Camera:WorldToViewportPoint(head.Position)
-                if screenPos.Z > 0 then
-                    local dist = (Vector2.new(screenPos.X, screenPos.Y) - mousePos).Magnitude
-                    if dist < closestDist then
-                        closestDist = dist
-                        closest = head
-                    end
+            if onScreen then
+                local distance = (Vector2.new(headPos.X, headPos.Y) - mousePos).Magnitude
+                if distance < closestDistance then
+                    closestDistance = distance
+                    closestPlayer = player
                 end
             end
         end
     end
     
-    return closest
-end
-
--- Simulate bullet travel and damage
-local function simulateBulletTravel(target, realPosition)
-    -- Wait the bullet travel time before applying damage
-    wait(BulletTravelTime)
-    
-    -- Check if target still exists and is valid
-    if target and target.Parent and target.Parent:FindFirstChildOfClass("Humanoid") then
-        -- Create a ray from camera to the real position
-        local direction = (realPosition - Camera.CFrame.Position).Unit
-        local raycastParams = RaycastParams.new()
-        raycastParams.FilterDescendantsInstances = {LocalPlayer.Character}
-        raycastParams.FilterType = Enum.RaycastFilterType.Blacklist
+    -- Calculate FOV circle size
+    if closestPlayer and closestPlayer.Character and closestPlayer.Character:FindFirstChild("Head") then
+        local head = closestPlayer.Character.Head
+        local expandedSize = 13
         
-        local raycastResult = workspace:Raycast(Camera.CFrame.Position, direction * 1000, raycastParams)
+        -- Calculate apparent size on screen
+        local headPos = Camera:WorldToViewportPoint(head.Position)
+        local edgePos = Camera:WorldToViewportPoint(head.Position + Vector3.new(expandedSize/2, 0, 0))
+        local radius = (edgePos - headPos).X
         
-        -- If we hit something (should always hit the target since we're aiming at them)
-        if raycastResult and raycastResult.Instance:IsDescendantOf(target.Parent) then
-            -- Here you would normally apply damage, but since this is just simulation:
-            print("Simulated hit on", target.Parent.Name)
-        end
+        circle.Radius = radius
+        circle.Visible = true
+    else
+        circle.Visible = false
     end
 end
 
--- Single-frame head teleport
-local function teleportHead(target)
-    if activeTeleports[target] then return end
-    
-    -- Store original properties and position
-    activeTeleports[target] = {
-        cf = target.CFrame,
-        anchored = target.Anchored,
-        canCollide = target.CanCollide,
-        realPosition = target.Position
-    }
-    
-    -- Calculate teleport position
-    local mousePos = UIS:GetMouseLocation()
-    local ray = Camera:ViewportPointToRay(mousePos.X, mousePos.Y)
-    local teleportCF = CFrame.new(ray.Origin + (ray.Direction * HeadDistance))
-    
-    -- Prepare head for teleport
-    target.Anchored = true
-    target.CanCollide = false
-    
-    -- Teleport head for 1 frame
-    target.CFrame = teleportCF
-    
-    -- Start bullet travel simulation
-    spawn(function()
-        simulateBulletTravel(target, activeTeleports[target].realPosition)
-    end)
-    
-    -- Return head immediately on next frame
-    RunService.Heartbeat:Once(function()
-        if target and activeTeleports[target] then
-            target.CFrame = activeTeleports[target].cf
-            target.Anchored = activeTeleports[target].anchored
-            target.CanCollide = activeTeleports[target].canCollide
-            activeTeleports[target] = nil
-        end
-    end)
-end
-
--- Main loop
-RunService.RenderStepped:Connect(function()
-    -- Update FOV to mouse
-    circle.Position = UIS:GetMouseLocation()
-    
-    -- Shooting activation
-    if UIS:IsMouseButtonPressed(ActivationKey) then
-        local target = getTarget()
-        if target then
-            teleportHead(target)
-        end
+-- Update FOV every frame (Fixed to persist when tabbed out)
+local connection
+connection = RunService.Heartbeat:Connect(function()
+    local success = pcall(updateFOV)
+    if not success then
+        circle.Visible = false
     end
 end)
 
--- Cleanup
+-- Proper cleanup when script ends
 game:GetService("UserInputService").WindowFocusReleased:Connect(function()
-    -- Return all heads to original positions
-    for target, data in pairs(activeTeleports) do
-        if target then
-            target.CFrame = data.cf
-            target.Anchored = data.anchored
-            target.CanCollide = data.canCollide
-        end
-    end
-    circle:Remove()
+    -- Don't remove the circle, just hide it temporarily
+    circle.Visible = false
 end)
 
-print("1-Frame Silent Aimbot Active | FOV:", FOV, "| Bullet Travel Time:", BulletTravelTime)
+game:GetService("UserInputService").WindowFocused:Connect(function()
+    -- Restore the circle when window regains focus
+    if connection then
+        circle.Visible = true
+    end
+end)
+
+-- Your original silent aim hook remains unchanged below...
+local mt = getrawmetatable(game)
+local oldNamecall = mt.__namecall
+setreadonly(mt, false)
+
+mt.__namecall = newcclosure(function(self, ...)
+    local args = {...}
+    local method = getnamecallmethod()
+    
+    if method == "FindPartOnRayWithIgnoreList" and not checkcaller() then
+        local closestPlayer = nil
+        local closestDistance = math.huge
+        
+        for _, player in pairs(players:GetPlayers()) do
+            if player ~= plr and player.Character and player.Character:FindFirstChild("Head") then
+                local head = player.Character.Head
+                local distance = (head.Position - Camera.CFrame.Position).Magnitude
+                
+                if distance < closestDistance then
+                    closestDistance = distance
+                    closestPlayer = player
+                end
+            end
+        end
+        
+        if closestPlayer and closestPlayer.Character and closestPlayer.Character:FindFirstChild("Head") then
+            args[1] = Ray.new(Camera.CFrame.Position, (closestPlayer.Character.Head.Position - Camera.CFrame.Position).Unit * 1000)
+            return oldNamecall(self, unpack(args))
+        end
+    end
+    
+    return oldNamecall(self, ...)
+end)
+
+setreadonly(mt, true)
