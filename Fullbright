@@ -1,0 +1,59 @@
+-- FullBright LocalScript
+-- Paste this into StarterPlayerScripts or directly into your character
+
+local Lighting = game:GetService("Lighting")
+local RunService = game:GetService("RunService")
+
+-- Function to apply FullBright settings
+local function applyFullBright()
+    -- Lighting properties
+    Lighting.Ambient = Color3.new(1, 1, 1) -- White ambient light
+    Lighting.Brightness = 2 -- High brightness
+    Lighting.GlobalShadows = false -- Disable shadows
+    Lighting.Outlines = false -- Disable outlines (can help visibility)
+    
+    -- Remove all existing lighting effects
+    for _, child in ipairs(Lighting:GetChildren()) do
+        if child:IsA("BloomEffect") or 
+           child:IsA("BlurEffect") or 
+           child:IsA("ColorCorrectionEffect") or 
+           child:IsA("SunRaysEffect") then
+            child.Enabled = false
+        end
+    end
+    
+    -- Create a constant bright sky
+    if not Lighting:FindFirstChild("FullBrightSky") then
+        local sky = Instance.new("Sky")
+        sky.Name = "FullBrightSky"
+        sky.SkyboxBk = "rbxassetid://4633180796" -- Bright sky images
+        sky.SkyboxDn = "rbxassetid://4633180932"
+        sky.SkyboxFt = "rbxassetid://4633180777"
+        sky.SkyboxLf = "rbxassetid://4633180887"
+        sky.SkyboxRt = "rbxassetid://4633180959"
+        sky.SkyboxUp = "rbxassetid://4633180899"
+        sky.Parent = Lighting
+    end
+    
+    -- Force time to midday (optional)
+    Lighting.ClockTime = 14
+end
+
+-- Apply initially
+applyFullBright()
+
+-- Keep applying in case the game tries to change lighting back
+RunService.Heartbeat:Connect(function()
+    applyFullBright()
+end)
+
+-- Reapply when lighting changes (some games modify lighting dynamically)
+Lighting.Changed:Connect(applyFullBright)
+
+-- Message to confirm it's working
+print("FullBright enabled - all darkness and shadows removed")
+
+--!strict
+
+-- WARNING: Heads up! This script has not been verified by ScriptBlox. Use at your own risk!
+-- WARNING: Heads up! This script has not been verified by ScriptBlox. Use at your own risk!
