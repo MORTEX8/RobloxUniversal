@@ -158,14 +158,15 @@ local function createLoaderUI()
     local hitboxesButton = createFeatureButton("Hitboxes", combatFrame, UDim2.new(0, 10, 0, 60))
     local silentAimButton = createFeatureButton("SilentAim(WIP)", combatFrame, UDim2.new(0, 10, 0, 110))
 
-    -- Visuals tab buttons
-    local visualsButton = createFeatureButton("Visuals", visualsFrame, UDim2.new(0, 10, 0, 10))
+    -- Visuals tab buttons (changed "Visuals" to "Esp")
+    local visualsButton = createFeatureButton("Esp", visualsFrame, UDim2.new(0, 10, 0, 10))
     local skeletonEspButton = createFeatureButton("SkeletonEsp", visualsFrame, UDim2.new(0, 10, 0, 60))
     local fullbrightButton = createFeatureButton("Fullbright", visualsFrame, UDim2.new(0, 10, 0, 110))
     local ambienceButton = createFeatureButton("Ambience", visualsFrame, UDim2.new(0, 10, 0, 160))
 
-    -- Movement tab buttons
+    -- Movement tab buttons (added [Y] to Longneck)
     local bhopButton = createFeatureButton("Bhop", movementFrame, UDim2.new(0, 10, 0, 10))
+    local longneckButton = createFeatureButton("[Y] Longneck", movementFrame, UDim2.new(0, 10, 0, 60))
 
     -- Tab switching logic
     combatTab.MouseButton1Click:Connect(function()
@@ -225,7 +226,7 @@ local function createLoaderUI()
     end)
 
     visualsButton.MouseButton1Click:Connect(function()
-        loadScript("https://raw.githubusercontent.com/MORTEX8/RobloxUniversal/refs/heads/main/VisualsLua")
+        loadScript("https://raw.githubusercontent.com/MORTEX8/RobloxUniversal/refs/heads/main/Esp")
     end)
 
     skeletonEspButton.MouseButton1Click:Connect(function()
@@ -242,6 +243,10 @@ local function createLoaderUI()
 
     bhopButton.MouseButton1Click:Connect(function()
         loadScript("https://raw.githubusercontent.com/MORTEX8/RobloxUniversal/refs/heads/main/Bhop")
+    end)
+
+    longneckButton.MouseButton1Click:Connect(function()
+        loadScript("https://raw.githubusercontent.com/MORTEX8/RobloxUniversal/refs/heads/main/LongNeck")
     end)
 
     -- Toggle UI with Insert key
