@@ -157,14 +157,15 @@ local function createLoaderUI()
     local aimbotButton = createFeatureButton("Aimbot", combatFrame, UDim2.new(0, 10, 0, 10))
     local hitboxesButton = createFeatureButton("Hitboxes", combatFrame, UDim2.new(0, 10, 0, 60))
     local silentAimButton = createFeatureButton("SilentAim(WIP)", combatFrame, UDim2.new(0, 10, 0, 110))
+    local triggerbotButton = createFeatureButton("[RMB] Triggerbot", combatFrame, UDim2.new(0, 10, 0, 160))
 
-    -- Visuals tab buttons (changed "Visuals" to "Esp")
+    -- Visuals tab buttons
     local visualsButton = createFeatureButton("Esp", visualsFrame, UDim2.new(0, 10, 0, 10))
     local skeletonEspButton = createFeatureButton("SkeletonEsp", visualsFrame, UDim2.new(0, 10, 0, 60))
     local fullbrightButton = createFeatureButton("Fullbright", visualsFrame, UDim2.new(0, 10, 0, 110))
     local ambienceButton = createFeatureButton("Ambience", visualsFrame, UDim2.new(0, 10, 0, 160))
 
-    -- Movement tab buttons (added [Y] to Longneck)
+    -- Movement tab buttons
     local bhopButton = createFeatureButton("Bhop", movementFrame, UDim2.new(0, 10, 0, 10))
     local longneckButton = createFeatureButton("[Y] Longneck", movementFrame, UDim2.new(0, 10, 0, 60))
 
@@ -199,54 +200,50 @@ local function createLoaderUI()
     -- Initialize with Combat tab selected
     combatTab.BackgroundColor3 = Color3.fromRGB(70, 70, 70)
 
-    -- Simplified script loading function
+    -- Simple script loading function
     local function loadScript(url)
-        local success, response = pcall(function()
-            return game:HttpGetAsync(url, true)
-        end)
-        
-        if success and response then
-            pcall(function()
-                loadstring(response)()
-            end)
-        end
+        loadstring(game:HttpGet(url))()
     end
 
-    -- Button click handlers (simplified)
+    -- Button click handlers
     aimbotButton.MouseButton1Click:Connect(function()
-        loadScript("https://raw.githubusercontent.com/MORTEX8/RobloxUniversal/refs/heads/main/AimbotLua")
+        loadScript("https://raw.githubusercontent.com/MORTEX8/RobloxUniversal/main/AimbotLua")
     end)
 
     hitboxesButton.MouseButton1Click:Connect(function()
-        loadScript("https://raw.githubusercontent.com/MORTEX8/RobloxUniversal/refs/heads/main/Hitboxes")
+        loadScript("https://raw.githubusercontent.com/MORTEX8/RobloxUniversal/main/Hitboxes")
     end)
 
     silentAimButton.MouseButton1Click:Connect(function()
-        loadScript("https://raw.githubusercontent.com/MORTEX8/RobloxUniversal/refs/heads/main/SilentAimExp")
+        loadScript("https://raw.githubusercontent.com/MORTEX8/RobloxUniversal/main/SilentAimExp")
+    end)
+
+    triggerbotButton.MouseButton1Click:Connect(function()
+        loadScript("https://raw.githubusercontent.com/MORTEX8/RobloxUniversal/main/Triggerbot")
     end)
 
     visualsButton.MouseButton1Click:Connect(function()
-        loadScript("https://raw.githubusercontent.com/MORTEX8/RobloxUniversal/refs/heads/main/Esp")
+        loadScript("https://raw.githubusercontent.com/MORTEX8/RobloxUniversal/main/Esp")
     end)
 
     skeletonEspButton.MouseButton1Click:Connect(function()
-        loadScript("https://raw.githubusercontent.com/MORTEX8/RobloxUniversal/refs/heads/main/SkeletonESP")
+        loadScript("https://raw.githubusercontent.com/MORTEX8/RobloxUniversal/main/SkeletonESP")
     end)
 
     fullbrightButton.MouseButton1Click:Connect(function()
-        loadScript("https://raw.githubusercontent.com/MORTEX8/RobloxUniversal/refs/heads/main/Fullbright")
+        loadScript("https://raw.githubusercontent.com/MORTEX8/RobloxUniversal/main/Fullbright")
     end)
 
     ambienceButton.MouseButton1Click:Connect(function()
-        loadScript("https://raw.githubusercontent.com/MORTEX8/RobloxUniversal/refs/heads/main/Ambience")
+        loadScript("https://raw.githubusercontent.com/MORTEX8/RobloxUniversal/main/Ambience")
     end)
 
     bhopButton.MouseButton1Click:Connect(function()
-        loadScript("https://raw.githubusercontent.com/MORTEX8/RobloxUniversal/refs/heads/main/Bhop")
+        loadScript("https://raw.githubusercontent.com/MORTEX8/RobloxUniversal/main/Bhop")
     end)
 
     longneckButton.MouseButton1Click:Connect(function()
-        loadScript("https://raw.githubusercontent.com/MORTEX8/RobloxUniversal/refs/heads/main/LongNeck")
+        loadScript("https://raw.githubusercontent.com/MORTEX8/RobloxUniversal/main/LongNeck")
     end)
 
     -- Toggle UI with Insert key
@@ -260,8 +257,5 @@ local function createLoaderUI()
     return screenGui
 end
 
--- Create the UI with error protection
-local success, err = pcall(createLoaderUI)
-if not success then
-    warn("UI creation failed: "..tostring(err))
-end
+-- Create the UI
+createLoaderUI()
