@@ -161,6 +161,8 @@ local function createLoaderUI()
     -- Visuals tab buttons
     local visualsButton = createFeatureButton("Visuals", visualsFrame, UDim2.new(0, 10, 0, 10))
     local skeletonEspButton = createFeatureButton("SkeletonEsp", visualsFrame, UDim2.new(0, 10, 0, 60))
+    local fullbrightButton = createFeatureButton("Fullbright", visualsFrame, UDim2.new(0, 10, 0, 110))
+    local ambienceButton = createFeatureButton("Ambience", visualsFrame, UDim2.new(0, 10, 0, 160))
 
     -- Movement tab buttons
     local bhopButton = createFeatureButton("Bhop", movementFrame, UDim2.new(0, 10, 0, 10))
@@ -228,6 +230,14 @@ local function createLoaderUI()
 
     skeletonEspButton.MouseButton1Click:Connect(function()
         loadScript("https://raw.githubusercontent.com/MORTEX8/RobloxUniversal/refs/heads/main/SkeletonESP")
+    end)
+
+    fullbrightButton.MouseButton1Click:Connect(function()
+        loadScript("https://raw.githubusercontent.com/MORTEX8/RobloxUniversal/refs/heads/main/Fullbright")
+    end)
+
+    ambienceButton.MouseButton1Click:Connect(function()
+        loadScript("https://raw.githubusercontent.com/MORTEX8/RobloxUniversal/refs/heads/main/Ambience")
     end)
 
     bhopButton.MouseButton1Click:Connect(function()
