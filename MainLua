@@ -158,6 +158,7 @@ local function createLoaderUI()
     local hitboxesButton = createFeatureButton("Hitboxes", combatFrame, UDim2.new(0, 10, 0, 60))
     local silentAimButton = createFeatureButton("SilentAim(WIP)", combatFrame, UDim2.new(0, 10, 0, 110))
     local triggerbotButton = createFeatureButton("[RMB] Triggerbot", combatFrame, UDim2.new(0, 10, 0, 160))
+    local desyncButton = createFeatureButton("Desync", combatFrame, UDim2.new(0, 10, 0, 210))
 
     -- Visuals tab buttons
     local visualsButton = createFeatureButton("Esp", visualsFrame, UDim2.new(0, 10, 0, 10))
@@ -220,6 +221,10 @@ local function createLoaderUI()
 
     triggerbotButton.MouseButton1Click:Connect(function()
         loadScript("https://raw.githubusercontent.com/MORTEX8/RobloxUniversal/main/Triggerbot")
+    end)
+
+    desyncButton.MouseButton1Click:Connect(function()
+        loadScript("https://raw.githubusercontent.com/MORTEX8/RobloxUniversal/refs/heads/main/Desync")
     end)
 
     visualsButton.MouseButton1Click:Connect(function()
