@@ -6,13 +6,12 @@ local LocalPlayer = Players.LocalPlayer
 local Camera = workspace.CurrentCamera
 
 -- FOV Circle Drawing (Fixed to always be circular)
-local circle = Drawing.new("Circle")
+local circle = Drawing.new("Square")
 circle.Visible = true
 circle.Thickness = 1
 circle.Color = Color3.fromRGB(255, 255, 255)
 circle.Transparency = 1
 circle.Filled = false
-circle.NumSides = 64 -- Ensures smooth circle
 
 -- Original Hitbox Expansion Code (Unchanged)
 function GetPlayers()
@@ -75,8 +74,6 @@ local function updateFOV()
         return
     end
     
-    circle.Position = mousePos
-    
     -- Find closest player to crosshair
     local closestPlayer = nil
     local closestDistance = math.huge
@@ -106,7 +103,9 @@ local function updateFOV()
         local edgePos = Camera:WorldToViewportPoint(head.Position + Vector3.new(expandedSize/2, 0, 0))
         local radius = (edgePos - headPos).X
         
-        circle.Radius = radius
+        local squareSize = radius * 2.4 -- 20% bigger square
+        circle.Size = Vector2.new(squareSize, squareSize)
+        circle.Position = Vector2.new(mousePos.X - squareSize/2, mousePos.Y - squareSize/2) -- Center the square on cursor
         circle.Visible = true
     else
         circle.Visible = false
