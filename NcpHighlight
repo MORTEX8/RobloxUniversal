@@ -1,0 +1,23 @@
+-- Simple NPC Highlighter (Client-Sided)
+while true do
+    wait(1) -- Check every second
+    
+    for _, thing in pairs(workspace:GetChildren()) do
+        -- Check if it's likely an NPC (has humanoid but no player)
+        if thing:FindFirstChild("Humanoid") and not game.Players:GetPlayerFromCharacter(thing) then
+            -- Remove any existing highlight first
+            local oldHighlight = thing:FindFirstChildOfClass("Highlight")
+            if oldHighlight then
+                oldHighlight:Destroy()
+            end
+            
+            -- Create green highlight
+            local highlight = Instance.new("Highlight")
+            highlight.FillColor = Color3.fromRGB(0, 255, 0) -- Green
+            highlight.OutlineColor = Color3.fromRGB(0, 200, 0) -- Dark green outline
+            highlight.FillTransparency = 0.5
+            highlight.OutlineTransparency = 0
+            highlight.Parent = thing
+        end
+    end
+end
