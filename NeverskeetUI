@@ -1,0 +1,381 @@
+local Library = {}
+
+local UIS = game:GetService("UserInputService")
+local Players = game:GetService("Players")
+
+local Player = Players.LocalPlayer
+local PlayerGui = Player:WaitForChild("PlayerGui")
+
+Library.Flags = {}
+Library.Tabs = {}
+Library.Categories = {}
+
+Library.Theme = {
+	BG = Color3.fromRGB(18,18,18),
+	Panel = Color3.fromRGB(25,25,25),
+	Border = Color3.fromRGB(40,40,40),
+	Text = Color3.fromRGB(220,220,220),
+	Accent = Color3.fromRGB(130,255,0)
+}
+
+-------------------------------------------------
+-- CREATE WINDOW
+-------------------------------------------------
+
+function Library:CreateWindow(title)
+
+	local ScreenGui = Instance.new("ScreenGui")
+	ScreenGui.Name = "NeverskeetUI"
+	ScreenGui.ResetOnSpawn = false
+	ScreenGui.Parent = PlayerGui
+
+	local Main = Instance.new("Frame")
+	Main.Size = UDim2.new(0,720,0,480)
+	Main.Position = UDim2.new(.5,-360,.5,-240)
+	Main.BackgroundColor3 = Library.Theme.BG
+	Main.BorderColor3 = Library.Theme.Border
+	Main.Parent = ScreenGui
+
+	-------------------------------------------------
+	-- INSERT TOGGLE
+	-------------------------------------------------
+
+	UIS.InputBegan:Connect(function(input,gp)
+
+		if gp then return end
+
+		if input.KeyCode == Enum.KeyCode.Insert then
+			ScreenGui.Enabled = not ScreenGui.Enabled
+		end
+
+	end)
+
+	-------------------------------------------------
+	-- DRAG
+	-------------------------------------------------
+
+	local dragging = false
+	local dragStart
+	local startPos
+
+	Main.InputBegan:Connect(function(input)
+
+		if input.UserInputType == Enum.UserInputType.MouseButton1 then
+			dragging = true
+			dragStart = input.Position
+			startPos = Main.Position
+
+			input.Changed:Connect(function()
+				if input.UserInputState == Enum.UserInputState.End then
+					dragging = false
+				end
+			end)
+
+		end
+
+	end)
+
+	UIS.InputChanged:Connect(function(input)
+
+		if dragging and input.UserInputType == Enum.UserInputType.MouseMovement then
+
+			local delta = input.Position - dragStart
+
+			Main.Position = UDim2.new(
+				startPos.X.Scale,
+				startPos.X.Offset + delta.X,
+				startPos.Y.Scale,
+				startPos.Y.Offset + delta.Y
+			)
+
+		end
+
+	end)
+
+	-------------------------------------------------
+	-- TAB AREA
+	-------------------------------------------------
+
+	local TabFrame = Instance.new("Frame")
+	TabFrame.Size = UDim2.new(0,140,1,0)
+	TabFrame.BackgroundColor3 = Library.Theme.Panel
+	TabFrame.Parent = Main
+
+	local Layout = Instance.new("UIListLayout")
+	Layout.Parent = TabFrame
+	Layout.Padding = UDim.new(0,6)
+
+	local Pages = Instance.new("Frame")
+	Pages.BackgroundTransparency = 1
+	Pages.Size = UDim2.new(1,-150,1,0)
+	Pages.Position = UDim2.new(0,150,0,0)
+	Pages.Parent = Main
+
+	local Window = {}
+
+	-------------------------------------------------
+	-- TAB CREATION
+	-------------------------------------------------
+
+	function Window:Tab(name)
+
+		local Button = Instance.new("TextButton")
+		Button.Size = UDim2.new(1,0,0,36)
+		Button.Text = name
+		Button.BackgroundTransparency = 1
+		Button.TextColor3 = Library.Theme.Text
+		Button.Font = Enum.Font.GothamBold
+		Button.TextSize = 16
+		Button.Parent = TabFrame
+
+		local Page = Instance.new("Frame")
+		Page.Size = UDim2.new(1,0,1,0)
+		Page.BackgroundTransparency = 1
+		Page.Visible = false
+		Page.Parent = Pages
+
+		local PageLayout = Instance.new("UIListLayout")
+		PageLayout.Parent = Page
+		PageLayout.Padding = UDim.new(0,10)
+
+		Button.MouseButton1Click:Connect(function()
+
+			for _,v in pairs(Pages:GetChildren()) do
+				if v:IsA("Frame") then
+					v.Visible = false
+				end
+			end
+
+			Page.Visible = true
+
+		end)
+
+		local Tab = {}
+
+		-------------------------------------------------
+		-- CATEGORY
+		-------------------------------------------------
+
+		function Tab:Category(name)
+
+			local Frame = Instance.new("Frame")
+			Frame.Size = UDim2.new(1,0,0,200)
+			Frame.BackgroundColor3 = Library.Theme.Panel
+			Frame.BorderColor3 = Library.Theme.Border
+			Frame.Parent = Page
+
+			local Title = Instance.new("TextLabel")
+			Title.Text = name
+			Title.TextColor3 = Library.Theme.Text
+			Title.Font = Enum.Font.GothamBold
+			Title.TextSize = 15
+			Title.BackgroundTransparency = 1
+			Title.Position = UDim2.new(0,8,0,6)
+			Title.Parent = Frame
+
+			local Container = Instance.new("Frame")
+			Container.BackgroundTransparency = 1
+			Container.Position = UDim2.new(0,8,0,30)
+			Container.Size = UDim2.new(1,-16,1,-34)
+			Container.Parent = Frame
+
+			local Layout = Instance.new("UIListLayout")
+			Layout.Parent = Container
+			Layout.Padding = UDim.new(0,4)
+
+			local Category = {}
+
+			-------------------------------------------------
+			-- TOGGLE
+			-------------------------------------------------
+
+			function Category:Toggle(name,default,callback)
+
+				Library.Flags[name] = default
+
+				local Button = Instance.new("TextButton")
+				Button.Size = UDim2.new(1,0,0,26)
+				Button.BackgroundTransparency = 1
+				Button.TextColor3 = Library.Theme.Text
+				Button.Font = Enum.Font.Gotham
+				Button.TextSize = 14
+				Button.TextXAlignment = Enum.TextXAlignment.Left
+				Button.Parent = Container
+
+				local function Update()
+					Button.Text = (Library.Flags[name] and "☑ " or "☐ ")..name
+				end
+
+				Button.MouseButton1Click:Connect(function()
+
+					Library.Flags[name] = not Library.Flags[name]
+
+					Update()
+
+					if callback then
+						callback(Library.Flags[name])
+					end
+
+				end)
+
+				Update()
+
+			end
+
+			-------------------------------------------------
+			-- SLIDER
+			-------------------------------------------------
+
+			function Category:Slider(name,min,max,default,callback)
+
+				Library.Flags[name] = default
+
+				local Frame = Instance.new("Frame")
+				Frame.Size = UDim2.new(1,0,0,40)
+				Frame.BackgroundTransparency = 1
+				Frame.Parent = Container
+
+				local Label = Instance.new("TextLabel")
+				Label.Text = name.." : "..default
+				Label.TextColor3 = Library.Theme.Text
+				Label.Font = Enum.Font.Gotham
+				Label.TextSize = 14
+				Label.BackgroundTransparency = 1
+				Label.Size = UDim2.new(1,0,0,16)
+				Label.TextXAlignment = Enum.TextXAlignment.Left
+				Label.Parent = Frame
+
+				local Bar = Instance.new("Frame")
+				Bar.Position = UDim2.new(0,0,0,22)
+				Bar.Size = UDim2.new(1,0,0,8)
+				Bar.BackgroundColor3 = Color3.fromRGB(60,60,60)
+				Bar.Parent = Frame
+
+				local Fill = Instance.new("Frame")
+				Fill.Size = UDim2.new(default/max,0,1,0)
+				Fill.BackgroundColor3 = Library.Theme.Accent
+				Fill.Parent = Bar
+
+				Bar.InputBegan:Connect(function(input)
+
+					if input.UserInputType == Enum.UserInputType.MouseButton1 then
+
+						local Move
+
+						Move = UIS.InputChanged:Connect(function(i)
+
+							if i.UserInputType == Enum.UserInputType.MouseMovement then
+
+								local pct = math.clamp(
+									(i.Position.X-Bar.AbsolutePosition.X)/Bar.AbsoluteSize.X,
+									0,1
+								)
+
+								local value = math.floor(min + (max-min)*pct)
+
+								Fill.Size = UDim2.new(pct,0,1,0)
+
+								Label.Text = name.." : "..value
+
+								Library.Flags[name] = value
+
+								if callback then
+									callback(value)
+								end
+
+							end
+
+						end)
+
+						input.Changed:Connect(function()
+
+							if input.UserInputState == Enum.UserInputState.End then
+								Move:Disconnect()
+							end
+
+						end)
+
+					end
+
+				end)
+
+			end
+
+			-------------------------------------------------
+			-- DROPDOWN
+			-------------------------------------------------
+
+			function Category:Dropdown(name,list,callback)
+
+				Library.Flags[name] = list[1]
+
+				local Button = Instance.new("TextButton")
+				Button.Size = UDim2.new(1,0,0,26)
+				Button.Text = name.." : "..list[1]
+				Button.BackgroundColor3 = Color3.fromRGB(30,30,30)
+				Button.TextColor3 = Library.Theme.Text
+				Button.Font = Enum.Font.Gotham
+				Button.TextSize = 14
+				Button.Parent = Container
+
+				local Open = false
+
+				local DropFrame = Instance.new("Frame")
+				DropFrame.Visible = false
+				DropFrame.Size = UDim2.new(1,0,0,#list*24)
+				DropFrame.BackgroundColor3 = Color3.fromRGB(30,30,30)
+				DropFrame.Parent = Container
+
+				local Layout = Instance.new("UIListLayout")
+				Layout.Parent = DropFrame
+
+				for _,option in pairs(list) do
+
+					local Option = Instance.new("TextButton")
+					Option.Size = UDim2.new(1,0,0,24)
+					Option.Text = option
+					Option.TextColor3 = Library.Theme.Text
+					Option.BackgroundTransparency = 1
+					Option.Parent = DropFrame
+
+					Option.MouseButton1Click:Connect(function()
+
+						Library.Flags[name] = option
+
+						Button.Text = name.." : "..option
+
+						if callback then
+							callback(option)
+						end
+
+						DropFrame.Visible = false
+						Open = false
+
+					end)
+
+				end
+
+				Button.MouseButton1Click:Connect(function()
+
+					Open = not Open
+					DropFrame.Visible = Open
+
+				end)
+
+			end
+
+			-------------------------------------------------
+
+			return Category
+
+		end
+
+		return Tab
+
+	end
+
+	return Window
+
+end
+
+return Library
