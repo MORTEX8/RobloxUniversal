@@ -1,1 +1,386 @@
-aa
+-- TS-Silent Library
+-- Designed to be loaded with: loadstring(game:HttpGet(url))()
+-- Returns a library table with .new(settings), :start(), :stop(), :setSettings()
+
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
+local GuiService = game:GetService("GuiService")
+local Workspace = game:GetService("Workspace")
+
+local LocalPlayer = Players.LocalPlayer
+local Camera = Workspace.CurrentCamera
+local Mouse = LocalPlayer:GetMouse()
+
+local SilentAimLibrary = {}
+SilentAimLibrary.__index = SilentAimLibrary
+
+local EXPECTED_ARGUMENTS = {
+    FindPartOnRayWithIgnoreList = {
+        ArgCountRequired = 3,
+        Args = { "Instance", "Ray", "table", "boolean", "boolean" }
+    },
+    FindPartOnRayWithWhitelist = {
+        ArgCountRequired = 3,
+        Args = { "Instance", "Ray", "table", "boolean" }
+    },
+    FindPartOnRay = {
+        ArgCountRequired = 2,
+        Args = { "Instance", "Ray", "Instance", "boolean", "boolean" }
+    },
+    Raycast = {
+        ArgCountRequired = 3,
+        Args = { "Instance", "Vector3", "Vector3", "RaycastParams" }
+    }
+}
+
+local DEFAULT_SETTINGS = {
+    Enabled = true,
+    TeamCheck = false,
+    VisibleCheck = false,
+    HitChance = 100,
+
+    TargetPart = "HumanoidRootPart", -- Head / HumanoidRootPart / Random
+    ValidTargetParts = { "Head", "HumanoidRootPart" },
+
+    Method = "Raycast", -- Raycast / FindPartOnRay / FindPartOnRayWithWhitelist / FindPartOnRayWithIgnoreList / Mouse.Hit/Target / Camera
+    CameraAimSpeed = 100, -- only for Camera mode, 100 = hard lock
+
+    MouseHitPrediction = false,
+    PredictionAmount = 0.165,
+
+    FOV = {
+        Enabled = false,
+        Radius = 130,
+        Color = Color3.fromRGB(54, 57, 241)
+    },
+
+    VisualizeTarget = false,
+    VisualizeColor = Color3.fromRGB(54, 57, 241),
+
+    ToggleKey = Enum.KeyCode.RightAlt
+}
+
+local function deepCopy(tbl)
+    local out = {}
+    for k, v in pairs(tbl) do
+        if type(v) == "table" then
+            out[k] = deepCopy(v)
+        else
+            out[k] = v
+        end
+    end
+    return out
+end
+
+local function mergeSettings(base, custom)
+    local out = deepCopy(base)
+    for k, v in pairs(custom or {}) do
+        if type(v) == "table" and type(out[k]) == "table" then
+            out[k] = mergeSettings(out[k], v)
+        else
+            out[k] = v
+        end
+    end
+    return out
+end
+
+local function validateArguments(args, rayMethod)
+    if #args < rayMethod.ArgCountRequired then
+        return false
+    end
+    local matches = 0
+    for i, argument in ipairs(args) do
+        if typeof(argument) == rayMethod.Args[i] then
+            matches += 1
+        end
+    end
+    return matches >= rayMethod.ArgCountRequired
+end
+
+local function calculateChance(percentage)
+    percentage = math.floor(percentage)
+    local chance = math.floor(Random.new():NextNumber(0, 1) * 100) / 100
+    return chance <= percentage / 100
+end
+
+local function getMousePosition()
+    return UserInputService:GetMouseLocation()
+end
+
+local function getDirection(origin, position)
+    return (position - origin).Unit * 1000
+end
+
+function SilentAimLibrary:_isPlayerVisible(player)
+    local playerCharacter = player.Character
+    local localCharacter = LocalPlayer.Character
+    if not playerCharacter or not localCharacter then
+        return false
+    end
+
+    local targetPart = playerCharacter:FindFirstChild(self.Settings.TargetPart) or playerCharacter:FindFirstChild("HumanoidRootPart")
+    if not targetPart then
+        return false
+    end
+
+    local castPoints = { targetPart.Position, localCharacter, playerCharacter }
+    local ignoreList = { localCharacter, playerCharacter }
+    local obscuring = #Camera:GetPartsObscuringTarget(castPoints, ignoreList)
+    return obscuring == 0
+end
+
+function SilentAimLibrary:_getClosestPart()
+    local closestPart = nil
+    local closestDist = nil
+    local radius = (self.Settings.FOV and self.Settings.FOV.Radius) or 2000
+
+    for _, player in ipairs(Players:GetPlayers()) do
+        if player == LocalPlayer then
+            continue
+        end
+
+        if self.Settings.TeamCheck and player.Team == LocalPlayer.Team then
+            continue
+        end
+
+        local character = player.Character
+        if not character then
+            continue
+        end
+
+        local humanoid = character:FindFirstChildOfClass("Humanoid")
+        local hrp = character:FindFirstChild("HumanoidRootPart")
+        if not humanoid or humanoid.Health <= 0 or not hrp then
+            continue
+        end
+
+        if self.Settings.VisibleCheck and not self:_isPlayerVisible(player) then
+            continue
+        end
+
+        local rootScreen, onScreen = Camera:WorldToViewportPoint(hrp.Position)
+        if not onScreen then
+            continue
+        end
+
+        local distanceToMouse = (getMousePosition() - Vector2.new(rootScreen.X, rootScreen.Y)).Magnitude
+        if distanceToMouse <= (closestDist or radius) then
+            local targetPart
+            if self.Settings.TargetPart == "Random" then
+                local parts = self.Settings.ValidTargetParts or { "Head", "HumanoidRootPart" }
+                targetPart = character:FindFirstChild(parts[math.random(1, #parts)])
+            else
+                targetPart = character:FindFirstChild(self.Settings.TargetPart)
+            end
+
+            if targetPart then
+                closestPart = targetPart
+                closestDist = distanceToMouse
+            end
+        end
+    end
+
+    return closestPart
+end
+
+function SilentAimLibrary:_updateDrawings()
+    if self._fovCircle then
+        local fov = self.Settings.FOV or {}
+        self._fovCircle.Visible = self.Running and fov.Enabled == true
+        self._fovCircle.Radius = fov.Radius or 130
+        self._fovCircle.Color = fov.Color or Color3.fromRGB(54, 57, 241)
+        self._fovCircle.Position = getMousePosition()
+    end
+
+    if self._targetBox then
+        if self.Running and self.Settings.VisualizeTarget then
+            local part = self:_getClosestPart()
+            if part then
+                local vec, onScreen = Camera:WorldToViewportPoint(part.Position)
+                self._targetBox.Visible = onScreen
+                self._targetBox.Color = self.Settings.VisualizeColor or Color3.fromRGB(54, 57, 241)
+                self._targetBox.Position = Vector2.new(vec.X, vec.Y)
+            else
+                self._targetBox.Visible = false
+            end
+        else
+            self._targetBox.Visible = false
+        end
+    end
+end
+
+function SilentAimLibrary:_setupDrawings()
+    self._fovCircle = Drawing.new("Circle")
+    self._fovCircle.Thickness = 1
+    self._fovCircle.NumSides = 100
+    self._fovCircle.Filled = false
+    self._fovCircle.Transparency = 1
+    self._fovCircle.ZIndex = 999
+    self._fovCircle.Visible = false
+
+    self._targetBox = Drawing.new("Square")
+    self._targetBox.Visible = false
+    self._targetBox.ZIndex = 999
+    self._targetBox.Thickness = 20
+    self._targetBox.Size = Vector2.new(20, 20)
+    self._targetBox.Filled = true
+end
+
+function SilentAimLibrary:_cleanupDrawings()
+    if self._fovCircle then
+        self._fovCircle:Remove()
+        self._fovCircle = nil
+    end
+    if self._targetBox then
+        self._targetBox:Remove()
+        self._targetBox = nil
+    end
+end
+
+function SilentAimLibrary:_hookMeta()
+    if not hookmetamethod or not newcclosure then
+        warn("[TS-Silent] Missing exploit functions: hookmetamethod/newcclosure")
+        return
+    end
+
+    self._oldNamecall = hookmetamethod(game, "__namecall", newcclosure(function(...)
+        local method = getnamecallmethod()
+        local args = { ... }
+        local selfObj = args[1]
+
+        if self.Running and self.Settings.Enabled and selfObj == Workspace and not checkcaller() and calculateChance(self.Settings.HitChance or 100) then
+            if method == "FindPartOnRayWithIgnoreList" and self.Settings.Method == method then
+                if validateArguments(args, EXPECTED_ARGUMENTS.FindPartOnRayWithIgnoreList) then
+                    local rayObj = args[2]
+                    local hitPart = self:_getClosestPart()
+                    if hitPart then
+                        args[2] = Ray.new(rayObj.Origin, getDirection(rayObj.Origin, hitPart.Position))
+                        return self._oldNamecall(unpack(args))
+                    end
+                end
+            elseif method == "FindPartOnRayWithWhitelist" and self.Settings.Method == method then
+                if validateArguments(args, EXPECTED_ARGUMENTS.FindPartOnRayWithWhitelist) then
+                    local rayObj = args[2]
+                    local hitPart = self:_getClosestPart()
+                    if hitPart then
+                        args[2] = Ray.new(rayObj.Origin, getDirection(rayObj.Origin, hitPart.Position))
+                        return self._oldNamecall(unpack(args))
+                    end
+                end
+            elseif (method == "FindPartOnRay" or method == "findPartOnRay") and string.lower(self.Settings.Method) == string.lower(method) then
+                if validateArguments(args, EXPECTED_ARGUMENTS.FindPartOnRay) then
+                    local rayObj = args[2]
+                    local hitPart = self:_getClosestPart()
+                    if hitPart then
+                        args[2] = Ray.new(rayObj.Origin, getDirection(rayObj.Origin, hitPart.Position))
+                        return self._oldNamecall(unpack(args))
+                    end
+                end
+            elseif method == "Raycast" and self.Settings.Method == method then
+                if validateArguments(args, EXPECTED_ARGUMENTS.Raycast) then
+                    local origin = args[2]
+                    local hitPart = self:_getClosestPart()
+                    if hitPart then
+                        args[3] = getDirection(origin, hitPart.Position)
+                        return self._oldNamecall(unpack(args))
+                    end
+                end
+            end
+        end
+
+        return self._oldNamecall(...)
+    end))
+
+    self._oldIndex = hookmetamethod(game, "__index", newcclosure(function(selfObj, index)
+        if self.Running and self.Settings.Enabled and selfObj == Mouse and not checkcaller() and self.Settings.Method == "Mouse.Hit/Target" then
+            local hitPart = self:_getClosestPart()
+            if hitPart then
+                if index == "Target" or index == "target" then
+                    return hitPart
+                elseif index == "Hit" or index == "hit" then
+                    if self.Settings.MouseHitPrediction then
+                        return hitPart.CFrame + (hitPart.Velocity * (self.Settings.PredictionAmount or 0.165))
+                    else
+                        return hitPart.CFrame
+                    end
+                elseif index == "UnitRay" then
+                    return Ray.new(Mouse.Origin, (Mouse.Hit - Mouse.Origin).Unit)
+                end
+            end
+        end
+
+        return self._oldIndex(selfObj, index)
+    end))
+end
+
+function SilentAimLibrary:_bindLoops()
+    self._renderConn = RunService.RenderStepped:Connect(function()
+        self:_updateDrawings()
+
+        -- Camera mode lock (hold RMB)
+        if self.Running and self.Settings.Enabled and self.Settings.Method == "Camera" and UserInputService:IsMouseButtonPressed(Enum.UserInputType.MouseButton2) then
+            local hitPart = self:_getClosestPart()
+            if hitPart then
+                local speed = self.Settings.CameraAimSpeed or 100
+                local alpha = math.clamp(speed / 100, 0, 1)
+                local targetCFrame = CFrame.lookAt(Camera.CFrame.Position, hitPart.Position)
+                Camera.CFrame = Camera.CFrame:Lerp(targetCFrame, alpha)
+            end
+        end
+    end)
+
+    self._inputConn = UserInputService.InputBegan:Connect(function(input, gp)
+        if gp then
+            return
+        end
+        if input.KeyCode == self.Settings.ToggleKey then
+            self.Settings.Enabled = not self.Settings.Enabled
+        end
+    end)
+end
+
+function SilentAimLibrary:start()
+    if self.Running then
+        return
+    end
+    self.Running = true
+    self:_setupDrawings()
+    self:_hookMeta()
+    self:_bindLoops()
+end
+
+function SilentAimLibrary:stop()
+    if not self.Running then
+        return
+    end
+    self.Running = false
+
+    if self._renderConn then
+        self._renderConn:Disconnect()
+        self._renderConn = nil
+    end
+    if self._inputConn then
+        self._inputConn:Disconnect()
+        self._inputConn = nil
+    end
+
+    self:_cleanupDrawings()
+end
+
+function SilentAimLibrary:setSettings(newSettings)
+    self.Settings = mergeSettings(self.Settings, newSettings or {})
+end
+
+function SilentAimLibrary:getSettings()
+    return self.Settings
+end
+
+function SilentAimLibrary.new(settings)
+    local self = setmetatable({}, SilentAimLibrary)
+    self.Settings = mergeSettings(DEFAULT_SETTINGS, settings or {})
+    self.Running = false
+    return self
+end
+
+return SilentAimLibrary
