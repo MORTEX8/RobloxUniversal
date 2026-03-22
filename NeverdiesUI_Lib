@@ -149,7 +149,7 @@ function library:new(props)
 	-- // properties
 	local textsize = props.textsize or props.TextSize or props.textSize or props.Textsize or 12
 	local font = props.font or props.Font or "RobotoMono"
-	local name = props.name or props.Name or props.UiName or props.Uiname or props.uiName or props.username or props.Username or props.UserName or props.userName or "new ui"
+	local name = props.name or props.Name or props.UiName or props.Uiname or props.uiName or props.username or props.Username or props.UserName or props.userName or "Neverdies.me"
 	local color = props.color or props.Color or props.mainColor or props.maincolor or props.MainColor or props.Maincolor or props.Accent or props.accent or Color3.fromRGB(225, 58, 81)
 	local winsize = props.size or props.Size or UDim2.new(0, 600, 0, 790)
 	-- // variables
@@ -487,7 +487,7 @@ function library:watermark()
 			Size = UDim2.new(1,-10,1,0),
 			Position = UDim2.new(0.5,0,0,0),
 			Font = self.font,
-			Text = "",
+			Text = "Neverdies.me",
 			TextColor3 = Color3.fromRGB(255,255,255),
 			TextXAlignment = "Left",
 			TextSize = self.textsize,
@@ -499,7 +499,7 @@ function library:watermark()
 	--
 	local con
 	con = title:GetPropertyChangedSignal("TextBounds"):Connect(function()
-		outline.Size = UDim2.new(0,title.TextBounds.X+20,0,26)
+		outline.Size = UDim2.new(0,math.max(title.TextBounds.X+20, 120),0,26)
 	end)
 	--
 	watermark = {
@@ -527,6 +527,9 @@ function watermarks:update(content)
 	end
 	--
 	text = text:sub(0, -3)
+	if text == "" then
+		text = "Neverdies.me"
+	end
 	--
 	watermark.title.Text = text
 end
@@ -561,7 +564,7 @@ end
 --
 function library:loader(props)
 	local name = props.name or props.Name or props.LoaderName or props.Loadername or props.loaderName or props.loadername or "Loader"
-	local scriptname = props.scriptname or props.Scriptname or props.ScriptName or props.scriptName or "Universal"
+	local scriptname = props.scriptname or props.Scriptname or props.ScriptName or props.scriptName or "Neverdies.me"
 	local closed = props.close or props.Close or props.closecallback or props.Closecallback or props.CloseCallback or props.closeCallback or function()end
 	local logedin = props.login or props.Login or props.logincallback or props.Logincallback or props.LoginCallback or props.loginCallback or function()end
 	local loader = {}
