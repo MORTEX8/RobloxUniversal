@@ -130,6 +130,20 @@ end
 utility.removespaces = function(s)
    return s:gsub(" ","")
 end
+-- Gamesense / skeet-inspired window chrome (API unchanged for Silver.lua)
+local SK_TAB_BAR_H = 34
+local SK = {
+	bgOuter = Color3.fromRGB(7, 7, 7),
+	bgInner = Color3.fromRGB(10, 10, 10),
+	bgIndent = Color3.fromRGB(12, 12, 12),
+	bgMain = Color3.fromRGB(15, 15, 15),
+	bgTabsArea = Color3.fromRGB(11, 11, 11),
+	bgTabContent = Color3.fromRGB(13, 13, 13),
+	borderMain = Color3.fromRGB(48, 48, 48),
+	tabInactive = Color3.fromRGB(30, 30, 30),
+	tabActive = Color3.fromRGB(20, 20, 20),
+	tabLineDim = Color3.fromRGB(38, 38, 38),
+}
 -- // main
 function library:new(props)
 	-- // properties
@@ -137,6 +151,7 @@ function library:new(props)
 	local font = props.font or props.Font or "RobotoMono"
 	local name = props.name or props.Name or props.UiName or props.Uiname or props.uiName or props.username or props.Username or props.UserName or props.userName or "new ui"
 	local color = props.color or props.Color or props.mainColor or props.maincolor or props.MainColor or props.Maincolor or props.Accent or props.accent or Color3.fromRGB(225, 58, 81)
+	local winsize = props.size or props.Size or UDim2.new(0, 600, 0, 790)
 	-- // variables
 	local window = {}
 	-- // main
@@ -154,15 +169,15 @@ function library:new(props)
         if (check_exploit == "Synapse" and syn.request) then
 	syn.protect_gui(screen)
         end
-	-- 1
+	-- 1 (accent border ā€” skeet-style thin outer stroke)
 	local outline = utility.new(
 		"Frame",
 		{
 			AnchorPoint = Vector2.new(0.5,0.5),
 			BackgroundColor3 = color,
-			BorderColor3 = Color3.fromRGB(12, 12, 12),
+			BorderColor3 = Color3.fromRGB(5, 5, 5),
 			BorderSizePixel = 1,
-			Size = UDim2.new(0,600,0,790),
+			Size = winsize,
 			Position = UDim2.new(0.5,0,0.5,0),
 			Parent = screen
 		}
@@ -172,8 +187,8 @@ function library:new(props)
 		"Frame",
 		{
 			AnchorPoint = Vector2.new(0.5,0.5),
-			BackgroundColor3 = Color3.fromRGB(0, 0, 0),
-			BorderColor3 = Color3.fromRGB(12, 12, 12),
+			BackgroundColor3 = SK.bgOuter,
+			BorderColor3 = Color3.fromRGB(5, 5, 5),
 			BorderSizePixel = 1,
 			Size = UDim2.new(1,-4,1,-4),
 			Position = UDim2.new(0.5,0,0.5,0),
@@ -185,8 +200,8 @@ function library:new(props)
 		"Frame",
 		{
 			AnchorPoint = Vector2.new(0.5,0.5),
-			BackgroundColor3 = Color3.fromRGB(20, 20, 20),
-			BorderColor3 = Color3.fromRGB(56, 56, 56),
+			BackgroundColor3 = SK.bgIndent,
+			BorderColor3 = SK.borderMain,
 			BorderMode = "Inset",
 			BorderSizePixel = 1,
 			Size = UDim2.new(1,0,1,0),
@@ -199,8 +214,8 @@ function library:new(props)
 		"Frame",
 		{
 			AnchorPoint = Vector2.new(0.5,1),
-			BackgroundColor3 = Color3.fromRGB(20, 20, 20),
-			BorderColor3 = Color3.fromRGB(56, 56, 56),
+			BackgroundColor3 = SK.bgMain,
+			BorderColor3 = SK.borderMain,
 			BorderMode = "Inset",
 			BorderSizePixel = 1,
 			Size = UDim2.new(1,-10,1,-25),
@@ -224,8 +239,8 @@ function library:new(props)
 		"Frame",
 		{
 			AnchorPoint = Vector2.new(0.5,0.5),
-			BackgroundColor3 = Color3.fromRGB(24, 24, 24),
-			BorderColor3 = Color3.fromRGB(12, 12, 12),
+			BackgroundColor3 = SK.bgTabContent,
+			BorderColor3 = Color3.fromRGB(8, 8, 8),
 			BorderMode = "Inset",
 			BorderSizePixel = 1,
 			Size = UDim2.new(1,0,1,0),
@@ -277,11 +292,11 @@ function library:new(props)
 		"Frame",
 		{
 			AnchorPoint = Vector2.new(0.5,1),
-			BackgroundColor3 = Color3.fromRGB(20, 20, 20),
-			BorderColor3 = Color3.fromRGB(12, 12, 12),
+			BackgroundColor3 = SK.bgTabsArea,
+			BorderColor3 = Color3.fromRGB(8, 8, 8),
 			BorderMode = "Inset",
 			BorderSizePixel = 1,
-			Size = UDim2.new(1,0,1,-20),
+			Size = UDim2.new(1,0,1,-SK_TAB_BAR_H),
 			Position = UDim2.new(0.5,0,1,0),
 			Parent = holder
 		}
@@ -292,7 +307,7 @@ function library:new(props)
 		{
 			AnchorPoint = Vector2.new(0.5,0),
 			BackgroundTransparency = 1,
-			Size = UDim2.new(1,0,0,21),
+			Size = UDim2.new(1,0,0,SK_TAB_BAR_H),
 			Position = UDim2.new(0.5,0,0,0),
 			ZIndex = 2,
 			Parent = holder
@@ -302,8 +317,8 @@ function library:new(props)
 	local outline4 = utility.new(
 		"Frame",
 		{
-			BackgroundColor3 = Color3.fromRGB(20, 20, 20),
-			BorderColor3 = Color3.fromRGB(56, 56, 56),
+			BackgroundColor3 = SK.bgTabsArea,
+			BorderColor3 = SK.borderMain,
 			BorderMode = "Inset",
 			BorderSizePixel = 1,
 			Size = UDim2.new(1,0,1,0),
@@ -868,17 +883,18 @@ end
 function library:page(props)
 	-- // properties
 	local name = props.name or props.Name or props.page or props.Page or props.pagename or props.Pagename or props.PageName or props.pageName or "new ui"
+	local tabTextSize = math.clamp(math.floor((self.textsize or 12) * 1.14 + 0.5), 14, 18)
 	-- // variables
 	local page = {}
 	-- // main
 	local tabbutton = utility.new(
 		"Frame",
 		{
-			BackgroundColor3 = Color3.fromRGB(20, 20, 20),
-			BorderColor3 = Color3.fromRGB(12, 12, 12),
+			BackgroundColor3 = SK.tabInactive,
+			BorderColor3 = Color3.fromRGB(8, 8, 8),
 			BorderMode = "Inset",
 			BorderSizePixel = 1,
-			Size = UDim2.new(0,75,1,0),
+			Size = UDim2.new(0,82,0,SK_TAB_BAR_H),
 			Parent = self.tabsbuttons
 		}
 	)
@@ -886,8 +902,8 @@ function library:page(props)
 	local outline = utility.new(
 		"Frame",
 		{
-			BackgroundColor3 = Color3.fromRGB(24, 24, 24),
-			BorderColor3 = Color3.fromRGB(56, 56, 56),
+			BackgroundColor3 = SK.tabInactive,
+			BorderColor3 = SK.borderMain,
 			BorderMode = "Inset",
 			BorderSizePixel = 1,
 			Size = UDim2.new(1,0,1,0),
@@ -936,7 +952,7 @@ function library:page(props)
 	local line = utility.new(
 		"Frame",
 		{
-			BackgroundColor3 = Color3.fromRGB(24, 24, 24),
+			BackgroundColor3 = SK.tabLineDim,
 			BorderSizePixel = 0,
 			Size = UDim2.new(1,0,0,2),
 			Position = UDim2.new(0,0,1,0),
@@ -949,12 +965,12 @@ function library:page(props)
 		"TextLabel",
 		{
 			BackgroundTransparency = 1,
-			Size = UDim2.new(1,0,0,20),
+			Size = UDim2.new(1,0,1,0),
 			Position = UDim2.new(0,0,0,0),
 			Font = self.font,
 			Text = name,
-			TextColor3 = Color3.fromRGB(255,255,255),
-			TextSize = self.textsize,
+			TextColor3 = Color3.fromRGB(235,235,235),
+			TextSize = tabTextSize,
 			TextStrokeTransparency = 0,
 			Parent = outline
 		}
@@ -1051,9 +1067,9 @@ function library:page(props)
 					if v.open then
 						v.page.Visible = false
 						v.open = false
-						v.outline.BackgroundColor3 = Color3.fromRGB(24, 24, 24)
+						v.outline.BackgroundColor3 = SK.tabInactive
 						v.line.Size = UDim2.new(1,0,0,2)
-						v.line.BackgroundColor3 = Color3.fromRGB(24, 24, 24)
+						v.line.BackgroundColor3 = SK.tabLineDim
 					end
 				end
 			end
@@ -1062,9 +1078,9 @@ function library:page(props)
 			--
 			page.page.Visible = true
 			page.open = true
-			page.outline.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+			page.outline.BackgroundColor3 = SK.tabActive
 			page.line.Size = UDim2.new(1,0,0,3)
-			page.line.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+			page.line.BackgroundColor3 = self.theme.accent
 		end
 	end)
 	--
@@ -1089,18 +1105,18 @@ function pages:openpage()
 				if v.open then
 					v.page.Visible = false
 					v.open = false
-					v.outline.BackgroundColor3 = Color3.fromRGB(24, 24, 24)
+					v.outline.BackgroundColor3 = SK.tabInactive
 					v.line.Size = UDim2.new(1,0,0,2)
-					v.line.BackgroundColor3 = Color3.fromRGB(24, 24, 24)
+					v.line.BackgroundColor3 = SK.tabLineDim
 				end
 			end
 		end
 		--
 		page.page.Visible = true
 		page.open = true
-		page.outline.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+		page.outline.BackgroundColor3 = SK.tabActive
 		page.line.Size = UDim2.new(1,0,0,3)
-		page.line.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+		page.line.BackgroundColor3 = page.library.theme.accent
 	end
 end
 --
@@ -1116,8 +1132,8 @@ function pages:section(props)
 	local sectionholder = utility.new(
 		"Frame",
 		{
-			BackgroundColor3 = Color3.fromRGB(24, 24, 24),
-			BorderColor3 = Color3.fromRGB(56, 56, 56),
+			BackgroundColor3 = Color3.fromRGB(22, 22, 22),
+			BorderColor3 = SK.borderMain,
 			BorderMode = "Inset",
 			BorderSizePixel = 1,
 			Size = UDim2.new(1,0,0,size),
@@ -1128,8 +1144,8 @@ function pages:section(props)
 	local outline = utility.new(
 		"Frame",
 		{
-			BackgroundColor3 = Color3.fromRGB(24, 24, 24),
-			BorderColor3 = Color3.fromRGB(12, 12, 12),
+			BackgroundColor3 = Color3.fromRGB(22, 22, 22),
+			BorderColor3 = Color3.fromRGB(10, 10, 10),
 			BorderMode = "Inset",
 			BorderSizePixel = 1,
 			Size = UDim2.new(1,0,1,0),
@@ -1222,8 +1238,8 @@ function pages:multisection(props)
 	local sectionholder = utility.new(
 		"Frame",
 		{
-			BackgroundColor3 = Color3.fromRGB(24, 24, 24),
-			BorderColor3 = Color3.fromRGB(56, 56, 56),
+			BackgroundColor3 = Color3.fromRGB(22, 22, 22),
+			BorderColor3 = SK.borderMain,
 			BorderMode = "Inset",
 			BorderSizePixel = 1,
 			Size = UDim2.new(1,0,0,size),
@@ -1234,8 +1250,8 @@ function pages:multisection(props)
 	local outline = utility.new(
 		"Frame",
 		{
-			BackgroundColor3 = Color3.fromRGB(24, 24, 24),
-			BorderColor3 = Color3.fromRGB(12, 12, 12),
+			BackgroundColor3 = Color3.fromRGB(22, 22, 22),
+			BorderColor3 = Color3.fromRGB(10, 10, 10),
 			BorderMode = "Inset",
 			BorderSizePixel = 1,
 			Size = UDim2.new(1,0,1,0),
@@ -1291,7 +1307,7 @@ function pages:multisection(props)
 			AnchorPoint = Vector2.new(0.5,0),
 			BackgroundTransparency = 1,
 			BorderSizePixel = 0,
-			Size = UDim2.new(1,-6,0,20),
+			Size = UDim2.new(1,-6,0,26),
 			Position = UDim2.new(0.5,0,0,5),
 			Parent = tabsholder
 		}
@@ -1301,11 +1317,11 @@ function pages:multisection(props)
 		"Frame",
 		{
 			AnchorPoint = Vector2.new(0.5,1),
-			BackgroundColor3 = Color3.fromRGB(20, 20, 20),
-			BorderColor3 = Color3.fromRGB(12, 12, 12),
+			BackgroundColor3 = SK.bgTabsArea,
+			BorderColor3 = Color3.fromRGB(8, 8, 8),
 			BorderMode = "Inset",
 			BorderSizePixel = 1,
-			Size = UDim2.new(1,-6,1,-27),
+			Size = UDim2.new(1,-6,1,-33),
 			Position = UDim2.new(0.5,0,1,-3),
 			Parent = tabsholder
 		}
@@ -1362,17 +1378,18 @@ end
 --
 function multisections:section(props)
 	local name = props.name or props.Name or props.page or props.Page or props.pagename or props.Pagename or props.PageName or props.pageName or "new ui"
+	local subTabText = math.clamp(math.floor((self.library.textsize or 12) * 1.08 + 0.5), 13, 17)
 	-- // variables
 	local mssection = {}
 	-- // main
 	local tabbutton = utility.new(
 		"Frame",
 		{
-			BackgroundColor3 = Color3.fromRGB(20, 20, 20),
-			BorderColor3 = Color3.fromRGB(12, 12, 12),
+			BackgroundColor3 = SK.tabInactive,
+			BorderColor3 = Color3.fromRGB(8, 8, 8),
 			BorderMode = "Inset",
 			BorderSizePixel = 1,
-			Size = UDim2.new(0,60,0,20),
+			Size = UDim2.new(0,64,0,26),
 			Parent = self.buttons
 		}
 	)
@@ -1380,8 +1397,8 @@ function multisections:section(props)
 	local outline = utility.new(
 		"Frame",
 		{
-			BackgroundColor3 = Color3.fromRGB(20, 20, 20),
-			BorderColor3 = Color3.fromRGB(56, 56, 56),
+			BackgroundColor3 = SK.tabInactive,
+			BorderColor3 = SK.borderMain,
 			BorderMode = "Inset",
 			BorderSizePixel = 1,
 			Size = UDim2.new(1,0,1,0),
@@ -1443,12 +1460,12 @@ function multisections:section(props)
 		"TextLabel",
 		{
 			BackgroundTransparency = 1,
-			Size = UDim2.new(1,0,0,20),
+			Size = UDim2.new(1,0,1,0),
 			Position = UDim2.new(0,0,0,0),
 			Font = self.library.font,
 			Text = name,
-			TextColor3 = Color3.fromRGB(255,255,255),
-			TextSize = self.library.textsize,
+			TextColor3 = Color3.fromRGB(235,235,235),
+			TextSize = subTabText,
 			TextStrokeTransparency = 0,
 			Parent = outline
 		}
@@ -1460,7 +1477,7 @@ function multisections:section(props)
 			AnchorPoint = Vector2.new(0.5,1),
 			BackgroundTransparency = 1,
 			BorderSizePixel = 0,
-			Size = UDim2.new(1,-6,1,-27),
+			Size = UDim2.new(1,-6,1,-33),
 			Position = UDim2.new(0.5,0,1,-3),
 			Parent = self.tabs_outline
 		}
@@ -1495,9 +1512,9 @@ function multisections:section(props)
 					if v.open then
 						v.page.Visible = false
 						v.open = false
-						v.outline.BackgroundColor3 = Color3.fromRGB(31, 31 ,31)
+						v.outline.BackgroundColor3 = SK.tabInactive
 						v.line.Size = UDim2.new(1,0,0,2)
-						v.line.BackgroundColor3 = Color3.fromRGB(31, 31 ,31)
+						v.line.BackgroundColor3 = SK.tabLineDim
 					end
 				end
 			end
@@ -1506,9 +1523,9 @@ function multisections:section(props)
 			--
 			mssection.content.Visible = true
 			mssection.open = true
-			mssection.outline.BackgroundColor3 = Color3.fromRGB(24, 24, 24)
+			mssection.outline.BackgroundColor3 = SK.tabActive
 			mssection.line.Size = UDim2.new(1,0,0,3)
-			mssection.line.BackgroundColor3 = Color3.fromRGB(24, 24, 24)
+			mssection.line.BackgroundColor3 = mssection.library.theme.accent
 		end
 	end)
 	--
