@@ -1,7 +1,7 @@
--- TS-Silent library (exact provided silent-aim logic, configurable from loader)
--- Amongushook parity: config.MagicBullet ā€” when true, uses straight look-at prediction (no ProjectileDrop correction on aim vector).
--- Loader passes: Enabled, HitPart, FovRadius, MagicBullet (optional, default false)
--- Returns a function: init(config)
+-- TS-Silent ā€” Trident Survival silent aim (Amongushook-equivalent pipeline)
+-- 1) createProjectile: aim + Amongushook-style prediction when Prediction=true
+-- 2) Magic bullet: Workspace.Raycast hook returns a hit on the silent target (Amongushook projectile_handler / _OVERIDE_HITPOS behavior)
+-- Config: Enabled, HitPart, FovRadius, MagicBullet, Prediction (default true)
 
 return function(config)
     config = config or {}
@@ -11,119 +11,259 @@ return function(config)
     end
 
     local enabled = (config.Enabled == nil) and true or config.Enabled
-    local hitPart = config.HitPart or "Head"
+    local hitPartName = config.HitPart or "Head"
     local fovRadius = config.FovRadius or 600
     local magicBullet = (config.MagicBullet == nil) and false or not not config.MagicBullet
+    local usePrediction = (config.Prediction == nil) and true or not not config.Prediction
 
     local actorScript = string.format([[
-        -- // Variables 
-        local camera = workspace.CurrentCamera;
+        local Players = game:GetService("Players");
         local runService = game:GetService("RunService");
+        local workspace = game:GetService("Workspace");
+        local camera = workspace.CurrentCamera;
+        local localPlayer = Players.LocalPlayer;
 
         local silentAim = {
             Enabled = %s,
-            HitPart = "%s", -- { "Head", "Torso" }
+            HitPart = "%s",
             MagicBullet = %s,
-            Fov = {
-                Radius = %s
-            },
-
-            PlayersVelocity = { -- Don't touch
-                Position = { },
-                Time = { }
-            }
+            Prediction = %s,
+            Fov = { Radius = %s },
+            PlayersVelocity = { Position = {}, Time = {} }
         };
 
-        local createProjectile;
-        local players = { };
+        -- Amongushook-style override fed to Raycast hook (silent_data.silent._OVERIDE_HITPOS + instance)
+        local silentState = {
+            active = false,
+            _OVERIDE_HITPOS = nil,
+            instance = nil,
+            character = nil
+        };
 
-        for i,v in getgc() do 
-            if typeof(v) == "function" and not iscclosure(v) then 
+        local lastWeaponInfo = { ProjectileSpeed = 375, ProjectileDrop = 0.22 };
+
+        local createProjectile;
+        local players = {};
+
+        for i, v in getgc() do
+            if typeof(v) == "function" and not iscclosure(v) then
                 if debug.getconstants(v)[1] == "ProjectileSpeed" and string.match(debug.info(v, "s"), "RangedWeaponClient") then
                     createProjectile = v;
-                elseif debug.info(v, "n") == "updatePlayers" and string.match(debug.info(v, "s"), "PlayerClient") then 
-                    players = debug.getupvalue(v, 1); 
-                end;
-            end;
-        end;
+                elseif debug.info(v, "n") == "updatePlayers" and string.match(debug.info(v, "s"), "PlayerClient") then
+                    players = debug.getupvalue(v, 1);
+                end
+            end
+        end
 
-        -- // Functions
+        local function getPlayerVelocity(index)
+            local pv = silentAim.PlayersVelocity.Position[index];
+            local pt = silentAim.PlayersVelocity.Time;
+            if pv and pv[15] and pt[15] then
+                return (pv[15] - pv[1]) / (pt[15] - pt[1]);
+            end
+            return Vector3.zero;
+        end
+
+        local function calculateTime(from, to, muzzleVelocity)
+            return (to - from).Magnitude / muzzleVelocity;
+        end
+
+        -- Amongushook prediction (dump fn "a"): target lead + drop along trajectory from muzzle to target
+        local function predictAmongushook(muzzlePos, hitPartInst, weaponInfo, index)
+            local speed = weaponInfo.ProjectileSpeed;
+            local drop = weaponInfo.ProjectileDrop;
+            local tpos = hitPartInst.Position;
+            local dist = (tpos - muzzlePos).Magnitude;
+            local timeToTarget = dist / speed;
+            local vel = getPlayerVelocity(index);
+            local velocityOffset = vel * (timeToTarget * 7.4);
+            local trajectory = CFrame.lookAt(muzzlePos, tpos);
+            local dropOffset = trajectory.UpVector * (drop ^ (timeToTarget * drop) - 1);
+            return tpos + velocityOffset + dropOffset;
+        end
+
+        -- Legacy simple prediction (velocity * flight time only)
+        local function predictSimple(cFrame, hitPartInst, weaponInfo, index)
+            local t = calculateTime(cFrame.Position, hitPartInst.Position, weaponInfo.ProjectileSpeed);
+            local vel = getPlayerVelocity(index);
+            return hitPartInst.Position + (vel * t);
+        end
+
         local function getclosestPlayer()
             local closest, closestIndex, closestdistance = nil, 0, silentAim.Fov.Radius;
-
-            for index, player in players do 
-                if not player.model or player.sleeping then 
-                    continue;
-                end;
-
+            for index, player in players do
+                if not player.model or player.sleeping then continue; end
                 local hitPart = player.model:FindFirstChild(silentAim.HitPart);
-                if not hitPart then 
-                    continue;
-                end;
-
+                if not hitPart then continue; end
                 local screenPosition = camera:WorldToViewportPoint(hitPart.Position);
-                if screenPosition.Z <= 0 then 
-                    continue;
-                end;
-
-                local distance = (camera.ViewportSize/2 - Vector2.new(screenPosition.X, screenPosition.Y)).Magnitude;
-                if distance < closestdistance then 
+                if screenPosition.Z <= 0 then continue; end
+                local distance = (camera.ViewportSize / 2 - Vector2.new(screenPosition.X, screenPosition.Y)).Magnitude;
+                if distance < closestdistance then
                     closestdistance = distance;
                     closest = hitPart;
                     closestIndex = index;
-                end;
-            end;
-
+                end
+            end
             return closest, closestIndex;
-        end;
+        end
 
-        local function calculateTime(from, to, muzzleVelocity)
-            local distance = (to - from).Magnitude;
-            local time = distance / muzzleVelocity;
+        local function updateSilentStateForRay(weaponInfo)
+            if not silentAim.Enabled or not silentAim.MagicBullet then
+                silentState.active = false;
+                silentState._OVERIDE_HITPOS = nil;
+                silentState.instance = nil;
+                silentState.character = nil;
+                return;
+            end
+            local hitPart, index = getclosestPlayer();
+            if not hitPart then
+                silentState.active = false;
+                silentState._OVERIDE_HITPOS = nil;
+                silentState.instance = nil;
+                silentState.character = nil;
+                return;
+            end
+            local char = hitPart.Parent;
+            local muzzle = camera.CFrame.Position;
+            if localPlayer and localPlayer.Character and localPlayer.Character:FindFirstChild("Head") then
+                muzzle = localPlayer.Character.Head.Position;
+            end
+            local pred;
+            if silentAim.Prediction then
+                pred = predictAmongushook(muzzle, hitPart, weaponInfo, index);
+            else
+                pred = predictSimple(CFrame.new(muzzle), hitPart, weaponInfo, index);
+            end
+            silentState.active = true;
+            silentState._OVERIDE_HITPOS = pred;
+            silentState.instance = hitPart;
+            silentState.character = char;
+        end
 
-            return time;
-        end;
-
-        -- // Silent Aim
-        local oldCreateProjectile; oldCreateProjectile = hookfunction(createProjectile, function(cFrame, weaponInfo, isLocal, p63, p64)
-
-            if isLocal and silentAim.Enabled then 
+        local oldCreateProjectile;
+        oldCreateProjectile = hookfunction(createProjectile, function(cFrame, weaponInfo, isLocal, p63, p64)
+            if weaponInfo and weaponInfo.ProjectileSpeed then
+                lastWeaponInfo = weaponInfo;
+            end
+            if isLocal and silentAim.Enabled and weaponInfo then
                 local hitPart, index = getclosestPlayer();
-                if hitPart then 
-                    local time = calculateTime(cFrame.Position, hitPart.Position, weaponInfo.ProjectileSpeed);
-                    local playerVelocity = (silentAim.PlayersVelocity.Position[index][15] and (silentAim.PlayersVelocity.Position[index][15] - silentAim.PlayersVelocity.Position[index][1]) / (silentAim.PlayersVelocity.Time[15] - silentAim.PlayersVelocity.Time[1])) or Vector3.zero;
-                    local prediction = hitPart.Position + (playerVelocity * time); 
-                    time = calculateTime(cFrame.Position, prediction, weaponInfo.ProjectileSpeed);
+                if hitPart then
+                    local prediction;
+                    if silentAim.MagicBullet and silentAim.Prediction then
+                        prediction = predictAmongushook(cFrame.Position, hitPart, weaponInfo, index);
+                    elseif silentAim.Prediction and not silentAim.MagicBullet then
+                        local t0 = calculateTime(cFrame.Position, hitPart.Position, weaponInfo.ProjectileSpeed);
+                        local vel = getPlayerVelocity(index);
+                        prediction = hitPart.Position + (vel * t0);
+                    else
+                        prediction = predictSimple(cFrame, hitPart, weaponInfo, index);
+                    end
+                    local time = calculateTime(cFrame.Position, prediction, weaponInfo.ProjectileSpeed);
 
                     if silentAim.MagicBullet then
-                        -- Magic bullet (Amongushook silentAim_magicBullet): direct aim at prediction, no drop term on look vector
+                        silentState._OVERIDE_HITPOS = prediction;
+                        silentState.instance = hitPart;
+                        silentState.character = hitPart.Parent;
+                        silentState.active = true;
                         cFrame = CFrame.new(cFrame.Position, prediction);
                     else
                         cFrame = CFrame.new(cFrame.Position, prediction - Vector3.yAxis * (-weaponInfo.ProjectileDrop ^ (time * weaponInfo.ProjectileDrop) + 1));
-                    end;
-                end;    
-            end;
-
+                    end
+                end
+            end
             return oldCreateProjectile(cFrame, weaponInfo, isLocal, p63, p64);
         end);
 
+        local oldRaycast = workspace.Raycast;
+        local newRaycast = function(self, origin, direction, params)
+            local dir = direction;
+            local dirMag = dir.Magnitude;
+            local dirUnit = dirMag > 1e-5 and (dir / dirMag) or Vector3.zero;
 
-        -- // shitty loops
-        runService.Heartbeat:Connect(function() 
-            for index, player in players do
-                if not player.model or player.sleeping then 
-                    continue;
-                end;
+            local res = oldRaycast(self, origin, direction, params);
 
-                silentAim.PlayersVelocity.Position[index] = silentAim.PlayersVelocity.Position[index] or { };
-                table.insert(silentAim.PlayersVelocity.Position[index], 1, player.model.Torso.Position);
-                table.remove(silentAim.PlayersVelocity.Position[index], 16);
+            if not silentAim.Enabled or not silentAim.MagicBullet or not silentState.active or not silentState.instance or not silentState._OVERIDE_HITPOS then
+                return res;
+            end
+
+            local weaponRay = true;
+            if params and params.CollisionGroup and params.CollisionGroup ~= "WeaponRaycast" and params.CollisionGroup ~= "Default" then
+                weaponRay = false;
+            end
+            if not weaponRay then return res; end
+
+            local targetModel = silentState.character;
+            local aimPos = silentState._OVERIDE_HITPOS;
+            local inst = silentState.instance;
+
+            local hitsTarget = function(r)
+                if not r or not r.Instance then return false; end
+                local m = r.Instance;
+                while m do
+                    if m == targetModel then return true; end
+                    m = m.Parent;
+                end
+                return false;
             end;
 
+            if res and hitsTarget(res) then
+                return res;
+            end
+
+            local toPoint = aimPos - origin;
+            local t = toPoint:Dot(dirUnit);
+            if t < 0 or t > dirMag + 2 then
+                return res;
+            end
+            local closest = origin + dirUnit * t;
+            if (closest - aimPos).Magnitude > 8 then
+                return res;
+            end
+
+            return {
+                Instance = inst,
+                Position = aimPos,
+                Normal = Vector3.new(0, 1, 0),
+                Material = Enum.Material.Plastic,
+                Distance = t,
+            };
+        end;
+
+        if hookfunction then
+            hookfunction(workspace.Raycast, newRaycast);
+        else
+            workspace.Raycast = newRaycast;
+        end
+
+        runService.Heartbeat:Connect(function()
+            for index, player in players do
+                if not player.model or player.sleeping then continue; end
+                silentAim.PlayersVelocity.Position[index] = silentAim.PlayersVelocity.Position[index] or {};
+                local torso = player.model:FindFirstChild("Torso") or player.model:FindFirstChild("UpperTorso");
+                if torso then
+                    table.insert(silentAim.PlayersVelocity.Position[index], 1, torso.Position);
+                    table.remove(silentAim.PlayersVelocity.Position[index], 16);
+                end
+            end
             table.insert(silentAim.PlayersVelocity.Time, 1, tick());
             table.remove(silentAim.PlayersVelocity.Time, 16);
+
+            if silentAim.Enabled and silentAim.MagicBullet then
+                updateSilentStateForRay(lastWeaponInfo);
+            else
+                silentState.active = false;
+                silentState._OVERIDE_HITPOS = nil;
+                silentState.instance = nil;
+                silentState.character = nil;
+            end
         end);
-    ]], tostring(enabled), esc(hitPart), tostring(magicBullet), tostring(fovRadius))
+    ]],
+        tostring(enabled),
+        esc(hitPartName),
+        tostring(magicBullet),
+        tostring(usePrediction),
+        tostring(fovRadius)
+    )
 
     run_on_actor(getactors()[1], actorScript)
 end
