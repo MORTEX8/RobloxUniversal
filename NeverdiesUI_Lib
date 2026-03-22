@@ -816,17 +816,34 @@ function library:saveconfig()
 end
 --
 function library:loadconfig(cfg)
-	local cfg = hs:JSONDecode(readfile(cfg))
-	for i,v in pairs(cfg) do
-		for c,d in pairs(v) do
-			for x,z in pairs(d) do
-				if z ~= nil then
-					if self.pointers[i] ~= nil and self.pointers[i][c] ~= nil and self.pointers[i][c][x] ~= nil then
-						self.pointers[i][c][x]:set(z)
+	local ok, err = pcall(function()
+		local raw = cfg
+		if typeof(cfg) == "string" then
+			if not isfile(cfg) then
+				return
+			end
+			raw = readfile(cfg)
+		end
+		local data = hs:JSONDecode(raw)
+		for i, v in pairs(data) do
+			for c, d in pairs(v) do
+				for x, z in pairs(d) do
+					if z ~= nil and self.pointers[i] and self.pointers[i][c] and self.pointers[i][c][x] then
+						local w = self.pointers[i][c][x]
+						local val = z
+						if typeof(z) == "table" and #z == 3 and typeof(z[1]) == "number" then
+							val = Color3.new(z[1], z[2], z[3])
+						end
+						pcall(function()
+							w:set(val)
+						end)
 					end
 				end
 			end
 		end
+	end)
+	if not ok then
+		warn("[UiLibrary] loadconfig failed:", err)
 	end
 end
 --
@@ -1551,6 +1568,8 @@ function sections:toggle(props)
 	local name = props.name or props.Name or props.page or props.Page or props.pagename or props.Pagename or props.PageName or props.pageName or "new ui"
 	local def = props.def or props.Def or props.default or props.Default or props.toggle or props.Toggle or props.toggled or props.Toggled or false
 	local callback = props.callback or props.callBack or props.CallBack or props.Callback or function()end
+	local parent = props.parent or props.Parent or self.content
+	local rightReserve = props.rightReserve or props.RightReserve or 0
 	-- // variables
 	local toggle = {}
 	-- // main
@@ -1559,7 +1578,7 @@ function sections:toggle(props)
 		{
 			BackgroundTransparency = 1,
 			Size = UDim2.new(1,0,0,15),
-			Parent = self.content
+			Parent = parent
 		}
 	)
 	--
@@ -1591,7 +1610,7 @@ function sections:toggle(props)
 		"TextLabel",
 		{
 			BackgroundTransparency = 1,
-			Size = UDim2.new(1,-20,1,0),
+			Size = UDim2.new(1,-20 - rightReserve,1,0),
 			Position = UDim2.new(0,20,0,0),
 			Font = self.library.font,
 			Text = name,
@@ -1670,6 +1689,48 @@ function sections:toggle(props)
 	-- // metatable indexing + return
 	setmetatable(toggle, toggles)
 	return toggle
+end
+--
+function sections:togglecolor(props)
+	local name = props.name or props.Name or "toggle + color"
+	local def = props.def or props.Def or props.default or props.Default or false
+	local defcolor = props.defcolor or props.Defcolor or props.defColor or Color3.fromRGB(255, 255, 255)
+	local tcb = props.togglecallback or props.toggleCallback or props.callback or function() end
+	local ccb = props.colorcallback or props.colorCallback or props.oncolor or function() end
+	local row = utility.new(
+		"Frame",
+		{
+			BackgroundTransparency = 1,
+			Size = UDim2.new(1, 0, 0, 15),
+			Parent = self.content
+		}
+	)
+	local tg = self:toggle({
+		name = name,
+		def = def,
+		parent = row,
+		rightReserve = 34,
+		callback = tcb,
+		pointer = props.pointer and (tostring(props.pointer) .. "_toggle") or nil,
+	})
+	local cp = self:colorpicker({
+		name = " ",
+		def = defcolor,
+		callback = ccb,
+		parent = row,
+		inline = true,
+		pointer = props.pointer and (tostring(props.pointer) .. "_color") or nil,
+	})
+	local combo = { toggle = tg, color = cp, library = self.library }
+	function combo:set(toggleOn, col)
+		if toggleOn ~= nil and tg.set then
+			tg:set(toggleOn)
+		end
+		if col ~= nil and cp.set then
+			cp:set(col)
+		end
+	end
+	return combo
 end
 --
 function toggles:set(bool)
@@ -3436,6 +3497,8 @@ function sections:colorpicker(props)
 	local cpname = props.cpname or props.Cpname or props.CPname or props.CPName or props.cPname or props.cpName or props.colorpickername or nil
 	local def = props.def or props.Def or props.default or props.Default or Color3.fromRGB(255,255,255)
 	local callback = props.callback or props.callBack or props.CallBack or props.Callback or function()end
+	local embedParent = props.parent or props.Parent or self.content
+	local inline = props.inline or props.Inline or false
 	--
 	local h,s,v = def:ToHSV()
 	-- // variables
@@ -3445,9 +3508,11 @@ function sections:colorpicker(props)
 		"Frame",
 		{
 			BackgroundTransparency = 1,
-			Size = UDim2.new(1,0,0,15),
+			Size = inline and UDim2.new(0, 30, 0, 15) or UDim2.new(1,0,0,15),
+			AnchorPoint = inline and Vector2.new(1, 0) or Vector2.new(0, 0),
+			Position = inline and UDim2.new(1, 0, 0, 0) or UDim2.new(0, 0, 0, 0),
 			ZIndex = 2,
-			Parent = self.content
+			Parent = embedParent
 		}
 	)
 	--
@@ -3511,6 +3576,10 @@ function sections:colorpicker(props)
 			Parent = colorpickerholder
 		}
 	)
+	if inline then
+		title.Visible = false
+		colorpickerholder.ZIndex = 3
+	end
 	--
 	local button = utility.new(
 		"TextButton",
@@ -3524,6 +3593,7 @@ function sections:colorpicker(props)
 			TextSize = self.library.textsize,
 			TextStrokeTransparency = 0,
 			Font = self.library.font,
+			ZIndex = inline and 4 or 2,
 			Parent = colorpickerholder
 		}
 	)
@@ -4102,15 +4172,30 @@ end
 --
 function sections:configloader(props)
 	-- // properties
-	local folder = props.folder or props.Folder
+	local folder = props.folder or props.Folder or "configs/"
+	folder = tostring(folder):gsub("[\\/]+$", "") .. "/"
+	pcall(function()
+		local acc = ""
+		for part in string.gmatch(folder, "[^/]+") do
+			acc = acc .. part .. "/"
+			if not isfolder(acc) then
+				makefolder(acc)
+			end
+		end
+	end)
 	-- // variables
 	local configloader = {}
+	local function cfgNameFromPath(path)
+		local s = tostring(path)
+		local base = s:match("[^/\\]+$") or s
+		return (base:gsub("%.cfg$", ""):gsub("%.CFG$", ""))
+	end
 	-- // main
 	local clholder = utility.new(
 		"Frame",
 		{
 			BackgroundTransparency = 1,
-			Size = UDim2.new(1,0,0,222),
+			Size = UDim2.new(1,0,0,268),
 			Parent = self.content
 		}
 	)
@@ -4178,7 +4263,7 @@ function sections:configloader(props)
 		{
 			BackgroundTransparency = 1,
 			BorderSizePixel = 0,
-			Size = UDim2.new(1,0,0,64),
+			Size = UDim2.new(1,0,0,92),
 			Position = UDim2.new(0,0,0,150),
 			Parent = outline
 		}
@@ -4512,19 +4597,27 @@ function sections:configloader(props)
 	end
 	--
 	local refresh = function()
-		for i,v in pairs(createdbuttons) do
-			v.button:Remove()
-			v.grey:Remove()
-			v.title:Remove()
+		for _, v in pairs(createdbuttons) do
+			pcall(function()
+				v.button:Remove()
+				v.grey:Remove()
+				v.title:Remove()
+			end)
 		end
 		createdbuttons = {}
-		for i,v in pairs(listfiles(folder)) do
-			if v:sub(-4) == ".cfg" then
-				if i == 1 then 
-					makebutton(v:sub(#tostring(folder)+2, -5),true)
-				else
-					makebutton(v:sub(#tostring(folder)+2, -5),false)
-				end
+		selected = nil
+		local ok, files = pcall(function()
+			return listfiles(folder)
+		end)
+		if not ok or not files then
+			return
+		end
+		local first = true
+		for _, v in pairs(files) do
+			local s = tostring(v)
+			if s:sub(-4):lower() == ".cfg" then
+				makebutton(cfgNameFromPath(s), first)
+				first = false
 			end
 		end
 	end
@@ -4532,12 +4625,14 @@ function sections:configloader(props)
 	refresh()
 	--
 	local name = textbox(buttonsholder)
+	local refreshBtn = newbutton(buttonsholder,"Refresh")
 	local load = newbutton(buttonsholder,"Load")
 	local delete = newbutton(buttonsholder,"Delete")
 	local save = newbutton(buttonsholder,"Save")
 	local create = newbutton(buttonsholder,"Create")
 	--
 	name[1].Size = UDim2.new(1,-10,0,20)
+	refreshBtn[1].Size = UDim2.new(1,-10,0,18)
 	load[1].Size = UDim2.new(0.5,-6,0,20)
 	delete[1].Size = UDim2.new(0.5,-6,0,20)
 	save[1].Size = UDim2.new(0.5,-6,0,20)
@@ -4546,16 +4641,19 @@ function sections:configloader(props)
 	name[1].Position = UDim2.new(0.5,0,0,0)
 	name[1].AnchorPoint = Vector2.new(0.5,0)
 	--
-	load[1].Position = UDim2.new(0,5,0,22)
+	refreshBtn[1].Position = UDim2.new(0.5,0,0,22)
+	refreshBtn[1].AnchorPoint = Vector2.new(0.5,0)
+	--
+	load[1].Position = UDim2.new(0,5,0,44)
 	load[1].AnchorPoint = Vector2.new(0,0)
 	--
-	delete[1].Position = UDim2.new(1,-5,0,22)
+	delete[1].Position = UDim2.new(1,-5,0,44)
 	delete[1].AnchorPoint = Vector2.new(1,0)
 	--
-	save[1].Position = UDim2.new(0,5,0,44)
+	save[1].Position = UDim2.new(0,5,0,66)
 	save[1].AnchorPoint = Vector2.new(0,0)
 	--
-	create[1].Position = UDim2.new(1,-5,0,44)
+	create[1].Position = UDim2.new(1,-5,0,66)
 	create[1].AnchorPoint = Vector2.new(1,0)
 	--
 	name[2].PlaceholderText = "Name"
@@ -4568,7 +4666,7 @@ function sections:configloader(props)
 	--
 	name[2].FocusLost:Connect(function()
 		local saved = name[2].Text
-		if #saved >= 3 and #saved <= 15 then
+		if #saved >= 1 and #saved <= 48 then
 			currentname = saved
 		else
 			name[2].Text = ""
@@ -4577,15 +4675,28 @@ function sections:configloader(props)
 		name[3].BorderColor3 = Color3.fromRGB(12,12,12)
 	end)
 	--
+	refreshBtn[3].MouseButton1Down:Connect(function()
+		refresh()
+		refreshBtn[2].BorderColor3 = self.library.theme.accent
+		wait(0.05)
+		refreshBtn[2].BorderColor3 = Color3.fromRGB(12,12,12)
+	end)
+	--
 	load[3].MouseButton1Down:Connect(function()
-		self.library:loadconfig(folder..selected.name..".cfg")
+		if not selected then
+			return
+		end
+		self.library:loadconfig(folder .. selected.name .. ".cfg")
 		load[2].BorderColor3 = self.library.theme.accent
 		wait(0.05)
 		load[2].BorderColor3 = Color3.fromRGB(12,12,12)
 	end)
 	--
 	delete[3].MouseButton1Down:Connect(function()
-		delfile(folder..selected.name..".cfg")
+		if not selected then
+			return
+		end
+		pcall(delfile, folder .. selected.name .. ".cfg")
 		delete[2].BorderColor3 = self.library.theme.accent
 		wait(0.05)
 		delete[2].BorderColor3 = Color3.fromRGB(12,12,12)
@@ -4594,7 +4705,10 @@ function sections:configloader(props)
 	end)
 	--
 	save[3].MouseButton1Down:Connect(function()
-		writefile(folder..selected.name..".cfg", self.library:saveconfig())
+		if not selected then
+			return
+		end
+		pcall(writefile, folder .. selected.name .. ".cfg", self.library:saveconfig())
 		save[2].BorderColor3 = self.library.theme.accent
 		wait(0.05)
 		save[2].BorderColor3 = Color3.fromRGB(12,12,12)
@@ -4603,7 +4717,10 @@ function sections:configloader(props)
 	end)
 	--
 	create[3].MouseButton1Down:Connect(function()
-		writefile(folder..currentname..".cfg", self.library:saveconfig())
+		if not currentname or currentname == "" then
+			return
+		end
+		pcall(writefile, folder .. currentname .. ".cfg", self.library:saveconfig())
 		create[2].BorderColor3 = self.library.theme.accent
 		wait(0.05)
 		create[2].BorderColor3 = Color3.fromRGB(12,12,12)
