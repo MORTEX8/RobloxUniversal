@@ -1,4 +1,6 @@
 -- TS-Silent library (exact provided silent-aim logic, configurable from loader)
+-- Amongushook parity: config.MagicBullet ā€” when true, uses straight look-at prediction (no ProjectileDrop correction on aim vector).
+-- Loader passes: Enabled, HitPart, FovRadius, MagicBullet (optional, default false)
 -- Returns a function: init(config)
 
 return function(config)
@@ -11,15 +13,17 @@ return function(config)
     local enabled = (config.Enabled == nil) and true or config.Enabled
     local hitPart = config.HitPart or "Head"
     local fovRadius = config.FovRadius or 600
+    local magicBullet = (config.MagicBullet == nil) and false or not not config.MagicBullet
 
     local actorScript = string.format([[
-        -- // Variables    
+        -- // Variables 
         local camera = workspace.CurrentCamera;
         local runService = game:GetService("RunService");
 
         local silentAim = {
             Enabled = %s,
             HitPart = "%s", -- { "Head", "Torso" }
+            MagicBullet = %s,
             Fov = {
                 Radius = %s
             },
@@ -91,7 +95,12 @@ return function(config)
                     local prediction = hitPart.Position + (playerVelocity * time); 
                     time = calculateTime(cFrame.Position, prediction, weaponInfo.ProjectileSpeed);
 
-                    cFrame = CFrame.new(cFrame.Position, prediction - Vector3.yAxis * (-weaponInfo.ProjectileDrop ^ (time * weaponInfo.ProjectileDrop) + 1));
+                    if silentAim.MagicBullet then
+                        -- Magic bullet (Amongushook silentAim_magicBullet): direct aim at prediction, no drop term on look vector
+                        cFrame = CFrame.new(cFrame.Position, prediction);
+                    else
+                        cFrame = CFrame.new(cFrame.Position, prediction - Vector3.yAxis * (-weaponInfo.ProjectileDrop ^ (time * weaponInfo.ProjectileDrop) + 1));
+                    end;
                 end;    
             end;
 
@@ -114,7 +123,7 @@ return function(config)
             table.insert(silentAim.PlayersVelocity.Time, 1, tick());
             table.remove(silentAim.PlayersVelocity.Time, 16);
         end);
-    ]], tostring(enabled), esc(hitPart), tostring(fovRadius))
+    ]], tostring(enabled), esc(hitPart), tostring(magicBullet), tostring(fovRadius))
 
     run_on_actor(getactors()[1], actorScript)
 end
